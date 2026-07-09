@@ -77,10 +77,12 @@ iitd_tool/
 │   ├── paths.sh             # /var/lib/iitd-tool data directories
 │   ├── repo_manage.sh       # Repo submenu actions + restore
 │   ├── repos.sh             # Repo template generation
+│   ├── tools_install.sh     # Basic tools checkbox installer
 │   └── modules.sh           # Module discovery & menu
 ├── iitd-tool                # Entry point (same as iitd-config)
 ├── config/
 │   ├── dependencies.list    # APT packages + tool files manifest
+│   ├── basic-tools.list     # Checkbox tool package list
 │   ├── repos/
 │   │   └── sources.list.template   # Generic template (<release> placeholder)
 │   └── ubuntu-codenames.map        # Version → codename fallback map
@@ -93,6 +95,8 @@ iitd_tool/
     ├── iitd_repo/           # IITD repository setup
     │   └── module.sh
     └── proxy/               # Installs iitd-proxy command (one-time)
+        └── module.sh
+    └── basic_tools/         # Checkbox installer for common CLI tools
         └── module.sh
 ```
 
@@ -135,6 +139,18 @@ Submenu — har step alag se chalao:
 Backups & restore: `/var/lib/iitd-tool/backups/`
 
 System install: `sudo iitd-tool install` → `/etc/iitd-tool`
+
+## Basic Tools Module
+
+Menu option **Basic Tools Installer** — common CLI tools checkbox list se install karo.
+
+**Controls:**
+- Terminal mein: ↑/↓ move, **SPACE** toggle, **ENTER** install, **q** cancel
+- Agar `whiptail` available ho to checklist UI use hota hai
+
+**Default tools** (`config/basic-tools.list`): wget, curl, tmux, screen, SSH client/server, net-tools (ifconfig), git, vim, htop, rsync, build-essential, dig/nslookup, ping, tree, nc, ...
+
+Already installed packages list mein `[installed]` dikhte hain; sirf missing packages install hote hain.
 
 ## Proxy Module
 

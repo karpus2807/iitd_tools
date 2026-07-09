@@ -50,6 +50,16 @@ Startup: System · Python · Dependencies · Data path
 
 `iitd-proxy` ek baar install → phir commands se use karo
 
+### `4` — Basic Tools Installer
+
+Checkbox list se tools chun kar install karo:
+
+- ↑/↓ move · **SPACE** toggle · **ENTER** install · **q** cancel  
+- (whiptail available ho to woh UI use hota hai)
+
+**Tools list:** wget, curl, tmux, ssh, ssh server, ifconfig (net-tools), git, vim, htop, rsync, build-essential, ...  
+→ `config/basic-tools.list`
+
 ### `q` — Quit
 
 ---
@@ -89,7 +99,7 @@ Cancel: **`exit`**
 
 | Date | Update |
 |------|--------|
-| 2026-07-09 | Install/uninstall added to main menu |
+| 2026-07-09 | Basic Tools Installer module (checkbox apt install) |
 | 2026-07-09 | Repo submenu, restore, system data dir |
 | 2026-07-09 | Direct install before proxy failsafe |
 

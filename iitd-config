@@ -29,6 +29,8 @@ source "${TOOL_ROOT}/lib/detect.sh"
 source "${TOOL_ROOT}/lib/deps.sh"
 # shellcheck source=lib/install.sh
 source "${TOOL_ROOT}/lib/install.sh"
+# shellcheck source=lib/tools_install.sh
+source "${TOOL_ROOT}/lib/tools_install.sh"
 # shellcheck source=lib/modules.sh
 source "${TOOL_ROOT}/lib/modules.sh"
 

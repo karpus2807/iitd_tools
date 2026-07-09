@@ -20,3 +20,6 @@ file:iitd-tool
 file:modules/system/module.sh
 file:modules/iitd_repo/module.sh
 file:modules/proxy/module.sh
+file:config/basic-tools.list
+file:lib/tools_install.sh
+file:modules/basic_tools/module.sh

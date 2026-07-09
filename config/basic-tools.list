@@ -1,0 +1,28 @@
+# Basic tools for IITD lab systems
+# Format: package|Display label
+
+wget|wget
+curl|curl
+tmux|tmux
+screen|GNU screen
+openssh-client|SSH client
+openssh-server|SSH server (sshd)
+net-tools|ifconfig / netstat / route
+iproute2|ip / ss commands
+iputils-ping|ping
+dnsutils|dig / nslookup
+git|git
+vim|vim editor
+nano|nano editor
+htop|htop process viewer
+unzip|unzip
+zip|zip
+tree|tree
+rsync|rsync
+lsof|lsof
+netcat-openbsd|netcat (nc)
+build-essential|gcc / g++ / make
+software-properties-common|add-apt-repository
+apt-transport-https|apt HTTPS transport
+ca-certificates|CA certificates
+gnupg|GnuPG
