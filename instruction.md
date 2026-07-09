@@ -9,6 +9,21 @@ Ubuntu **16.04 – 26.04** lab systems ke liye — IITD repo + proxy setup.
 
 ## Pehli baar (sirf ek baar manually)
 
+### Option A — Pendrive (recommended for lab PCs)
+
+Poora `iitd_tool` folder USB mein copy karo, phir target system par:
+
+```bash
+cd /media/usb/iitd_tool    # apna pendrive path
+bash install-iitd-tool.sh
+```
+
+- Ek baar **sudo password** puchega  
+- Tool **system-wide install** ho jayega (`/etc/iitd-tool`)  
+- Phir **main menu** khul jayega  
+
+### Option B — Git clone
+
 ```bash
 git clone https://github.com/karpus2807/iitd_tools.git
 cd iitd_tools
@@ -99,7 +114,7 @@ Cancel: **`exit`**
 
 | Date | Update |
 |------|--------|
-| 2026-07-09 | Basic Tools Installer module (checkbox apt install) |
+| 2026-07-09 | Portable launcher `install-iitd-tool.sh` (pendrive install) |
 | 2026-07-09 | Repo submenu, restore, system data dir |
 | 2026-07-09 | Direct install before proxy failsafe |
 

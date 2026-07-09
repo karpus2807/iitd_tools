@@ -55,6 +55,19 @@ Required dependencies fixed list: `config/dependencies.list`
 
 ## Quick Start
 
+### Pendrive / offline (lab PCs)
+
+Poora folder USB par copy karo, target Ubuntu system par:
+
+```bash
+cd /path/to/iitd_tool
+bash install-iitd-tool.sh
+```
+
+Sudo password ek baar → system install → main menu.
+
+### Git clone
+
 ```bash
 git clone https://github.com/karpus2807/iitd_tools.git
 cd iitd_tools
@@ -68,6 +81,7 @@ sudo ./iitd-tool
 
 ```
 iitd_tool/
+├── install-iitd-tool.sh     # Pendrive launcher (sudo + install + menu)
 ├── iitd-config              # Main entry script
 ├── lib/
 │   ├── common.sh            # Logging, backup, utilities

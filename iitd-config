@@ -36,6 +36,9 @@ source "${TOOL_ROOT}/lib/modules.sh"
 
 case "${1:-}" in
     install)
+        if [[ "${2:-}" == "-y" || "${2:-}" == "--yes" ]]; then
+            export IITD_INSTALL_YES=1
+        fi
         install_iitd_tool_system
         exit $?
         ;;

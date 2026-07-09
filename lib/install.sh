@@ -20,6 +20,11 @@ _install_copy_tree() {
 install_iitd_tool_system() {
     require_root
 
+    local auto_yes=0
+    if [[ "${IITD_INSTALL_YES:-0}" == "1" ]]; then
+        auto_yes=1
+    fi
+
     echo
     echo -e "${BOLD}IITD Tool — System Install${NC}"
     echo
@@ -31,13 +36,19 @@ install_iitd_tool_system() {
 
     if is_tool_system_installed; then
         log_warn "Tool already installed at ${IITD_ETC_INSTALL}"
-        if ! confirm "Reinstall / update system copy?"; then
-            return 0
+        if [[ "${auto_yes}" -eq 0 ]]; then
+            if ! confirm "Reinstall / update system copy?"; then
+                return 0
+            fi
+        else
+            log_info "Updating system copy from ${TOOL_ROOT}..."
         fi
     else
-        if ! confirm "Install IITD tool system-wide?"; then
-            log_info "Cancelled."
-            return 0
+        if [[ "${auto_yes}" -eq 0 ]]; then
+            if ! confirm "Install IITD tool system-wide?"; then
+                log_info "Cancelled."
+                return 0
+            fi
         fi
     fi
 

@@ -17,6 +17,7 @@ file:lib/paths.sh
 file:lib/repo_manage.sh
 file:lib/install.sh
 file:iitd-tool
+file:install-iitd-tool.sh
 file:modules/system/module.sh
 file:modules/iitd_repo/module.sh
 file:modules/proxy/module.sh
