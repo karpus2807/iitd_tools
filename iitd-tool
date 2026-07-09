@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# IITD Lab Ubuntu Setup Tool — system entry point (same as iitd-config)
+
+_script="$(readlink -f "${BASH_SOURCE[0]}")"
+exec "$(dirname "${_script}")/iitd-config" "$@"

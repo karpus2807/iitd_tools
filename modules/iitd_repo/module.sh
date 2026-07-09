@@ -1,72 +1,93 @@
 #!/usr/bin/env bash
-# IITD Repository Setup Module
-#
-# Adds IITD mirror entries to /etc/apt/sources.list
-# and disables official Ubuntu repos in sources.list.d/ubuntu.sources
+# IITD Repository Setup Module — submenu for individual repo actions
 
 MODULE_ID="iitd_repo"
 MODULE_NAME="IITD Repository Setup"
-MODULE_DESCRIPTION="Configure IITD apt mirror and disable official Ubuntu repos"
+MODULE_DESCRIPTION="Configure IITD apt mirror, disable extra repos, restore backups"
 MODULE_ORDER=10
 
 module_supported_versions() {
     echo "all"
 }
 
+show_repo_submenu() {
+    clear
+    echo -e "${BOLD}${CYAN}IITD Repository Setup${NC}"
+    echo
+    print_system_info
+    print_iitd_paths_info
+    echo
+    echo -e "${BOLD}Submenu:${NC}"
+    echo "  1) Backup sources.list"
+    echo "  2) Apply IITD mirror (sources.list)"
+    echo "  3) Disable ubuntu.sources"
+    echo "  4) Disable 3rd party repositories"
+    echo "  5) Run apt update"
+    echo "  6) Restore original repository status"
+    echo
+    echo "  b) Back to main menu"
+    echo
+}
+
 module_run() {
     local ubuntu_version="$1"
     local ubuntu_codename="$2"
+    local choice
 
-    echo "This will:"
-    echo "  1. Backup and replace /etc/apt/sources.list with IITD mirror config"
-    echo "  2. Disable /etc/apt/sources.list.d/ubuntu.sources (if present)"
-    echo "  3. Run apt update"
-    echo
-    echo "Ubuntu: ${ubuntu_version} (${ubuntu_codename})"
-    echo
+    while true; do
+        show_repo_submenu
+        read -r -p "Select option [1-6, b]: " choice
 
-    if ! confirm "Proceed with IITD repository setup?"; then
-        log_info "Cancelled."
-        return 0
-    fi
-
-    require_root
-
-    local sources_list="/etc/apt/sources.list"
-    local ubuntu_sources="/etc/apt/sources.list.d/ubuntu.sources"
-    local temp_sources
-    temp_sources="$(mktemp)"
-
-    if ! generate_sources_list "${ubuntu_version}" "${ubuntu_codename}" "${temp_sources}"; then
-        rm -f "${temp_sources}"
-        return 1
-    fi
-
-    # Step 1: Configure sources.list
-    backup_file "${sources_list}"
-    cp "${temp_sources}" "${sources_list}"
-    rm -f "${temp_sources}"
-    chmod 644 "${sources_list}"
-    log_success "Installed IITD sources -> ${sources_list}"
-
-    # Step 2: Disable official ubuntu.sources (24.04+)
-    if [[ -f "${ubuntu_sources}" ]]; then
-        backup_file "${ubuntu_sources}"
-        mv "${ubuntu_sources}" "${ubuntu_sources}.disabled"
-        log_success "Disabled official repos: ${ubuntu_sources} -> ${ubuntu_sources}.disabled"
-    else
-        log_info "No ubuntu.sources found (may already be disabled)"
-    fi
-
-    # Step 3: apt update
-    echo
-    log_info "Running apt update..."
-    if apt update; then
-        log_success "apt update completed successfully"
-    else
-        log_warn "apt update finished with errors — check network/proxy settings"
-        return 1
-    fi
-
-    log_success "IITD repository setup complete!"
+        case "${choice}" in
+            1)
+                echo
+                repo_action_backup_sources || true
+                pause
+                ;;
+            2)
+                echo
+                if confirm "Apply IITD mirror for ${ubuntu_version} (${ubuntu_codename})?"; then
+                    repo_action_apply_iitd_mirror "${ubuntu_version}" "${ubuntu_codename}" || true
+                else
+                    log_info "Cancelled."
+                fi
+                pause
+                ;;
+            3)
+                echo
+                if confirm "Disable ${UBUNTU_SOURCES}?"; then
+                    repo_action_disable_ubuntu_sources || true
+                else
+                    log_info "Cancelled."
+                fi
+                pause
+                ;;
+            4)
+                echo
+                if confirm "Disable all 3rd party repos in sources.list.d?"; then
+                    repo_action_disable_third_party || true
+                else
+                    log_info "Cancelled."
+                fi
+                pause
+                ;;
+            5)
+                echo
+                repo_action_apt_update || true
+                pause
+                ;;
+            6)
+                echo
+                repo_action_restore_all || true
+                pause
+                ;;
+            b|B|q|Q)
+                break
+                ;;
+            *)
+                log_warn "Invalid choice: ${choice}"
+                pause
+                ;;
+        esac
+    done
 }

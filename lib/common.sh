@@ -37,7 +37,7 @@ confirm() {
 
 backup_file() {
     local file="$1"
-    local backup_dir="${2:-/etc/apt/iitd-tool-backup}"
+    local backup_dir="${2:-${IITD_BACKUP_DIR:-/var/lib/iitd-tool/backups}}"
 
     if [[ ! -f "${file}" ]]; then
         return 0

@@ -7,60 +7,81 @@ Ubuntu **16.04 – 26.04** lab systems ke liye — IITD repo + proxy setup.
 
 ---
 
-## Setup (pehli baar)
+## Pehli baar (sirf ek baar manually)
 
 ```bash
 git clone https://github.com/karpus2807/iitd_tools.git
 cd iitd_tools
-chmod +x iitd-config
-sudo ./iitd-config
+chmod +x iitd-config iitd-tool
+sudo ./iitd-tool
 ```
+
+Menu se **IITD Tool Management → Install tool system-wide** chun lo.  
+Uske baad hamesha: `sudo iitd-tool` (kahi se bhi)
 
 ---
 
-## Tool commands
+## Main menu (`sudo iitd-tool`)
 
-```bash
-sudo ./iitd-config          # main menu
-```
+Startup: System · Python · Dependencies · Data path
 
-**Menu modules:**
-1. **IITD Repository Setup** — `repo.iitd.ernet.in` mirror lagata hai  
-2. **Proxy Setup** — `iitd-proxy` command install karta hai (ek baar)
+### `1` — IITD Tool Management
+
+| # | Option | Kya karta hai |
+|---|--------|---------------|
+| 1 | Install tool system-wide | `/etc/iitd-tool` + `iitd-tool` command |
+| 2 | Uninstall tool | System se tool hatao (data optional) |
+| 3 | Show install status | Installed hai ya nahi |
+| b | Back | Main menu |
+
+### `2` — IITD Repository Setup (submenu)
+
+| # | Option |
+|---|--------|
+| 1 | Backup sources.list |
+| 2 | Apply IITD mirror |
+| 3 | Disable ubuntu.sources |
+| 4 | Disable 3rd party repos |
+| 5 | Run apt update |
+| 6 | Restore original status |
+| b | Back |
+
+### `3` — Proxy Setup (Install iitd-proxy)
+
+`iitd-proxy` ek baar install → phir commands se use karo
+
+### `q` — Quit
 
 ---
 
-## Proxy commands
-
-Pehle menu se proxy module se install karo, phir:
+## Proxy commands (menu 3 ke baad)
 
 ```bash
 sudo iitd-proxy <role> <userid>    # proxy ON
 sudo iitd-proxy logout             # proxy OFF
-sudo iitd-proxy shell              # interactive login (type exit to quit)
-```
-
-**Examples** (userid apna IITD ID likho):
-
-```bash
-sudo iitd-proxy staff krajaymeena
-sudo iitd-proxy phd ankit
-sudo iitd-proxy btech ee1234567
-sudo iitd-proxy logout
+sudo iitd-proxy shell              # interactive (exit to quit)
 ```
 
 **Roles:** `btech` · `mtech` · `phd` · `staff` · `faculty` · `visitor`
 
-Password prompt aayega — IITD proxy password do.
+---
+
+## Data directory
+
+| Path | Purpose |
+|------|---------|
+| `/var/lib/iitd-tool/backups/` | Repo backups |
+| `/var/lib/iitd-tool/state/` | Restore manifest |
+| `/etc/iitd-tool/` | Installed tool |
 
 ---
 
-## Agar dependencies missing hon
+## Dependencies missing (startup)
 
-**Step 1:** Bina proxy — internet + IITD repo check → direct install try  
-**Step 2:** Agar fail ho → Failsafe (proxy shell) → login → install
+**Step 1:** Direct install (internet + IITD repo)  
+**Step 2:** Proxy failsafe → login → install
 
-Cancel: prompt par **`exit`**
+Cancel: **`exit`**
 
 ---
 
@@ -68,8 +89,10 @@ Cancel: prompt par **`exit`**
 
 | Date | Update |
 |------|--------|
-| 2026-07-09 | Direct install before proxy failsafe (internet + IITD repo check) |
+| 2026-07-09 | Install/uninstall added to main menu |
+| 2026-07-09 | Repo submenu, restore, system data dir |
+| 2026-07-09 | Direct install before proxy failsafe |
 
 ---
 
-*Har change ke baad upar change log mein ek line add karo.*
+*Har change ke baad change log update karo.*

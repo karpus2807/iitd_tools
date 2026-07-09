@@ -2,25 +2,41 @@
 # IITD Lab Ubuntu Setup Tool
 # Configures newly installed Ubuntu systems for IITD lab use.
 #
-# Usage: sudo ./iitd-config
-#        ./iitd-config          (menu works; modules needing root will prompt)
+# Usage:
+#   sudo ./iitd-config
+#   sudo ./iitd-tool install
+#   sudo iitd-tool          (after system install)
 
 set -euo pipefail
 
-TOOL_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+_script="$(readlink -f "${BASH_SOURCE[0]}")"
+TOOL_ROOT="$(cd "$(dirname "${_script}")" && pwd)"
 export TOOL_ROOT
 
 # shellcheck source=lib/common.sh
 source "${TOOL_ROOT}/lib/common.sh"
+# shellcheck source=lib/paths.sh
+source "${TOOL_ROOT}/lib/paths.sh"
 # shellcheck source=lib/python.sh
 source "${TOOL_ROOT}/lib/python.sh"
 # shellcheck source=lib/repos.sh
 source "${TOOL_ROOT}/lib/repos.sh"
+# shellcheck source=lib/repo_manage.sh
+source "${TOOL_ROOT}/lib/repo_manage.sh"
 # shellcheck source=lib/detect.sh
 source "${TOOL_ROOT}/lib/detect.sh"
 # shellcheck source=lib/deps.sh
 source "${TOOL_ROOT}/lib/deps.sh"
+# shellcheck source=lib/install.sh
+source "${TOOL_ROOT}/lib/install.sh"
 # shellcheck source=lib/modules.sh
 source "${TOOL_ROOT}/lib/modules.sh"
+
+case "${1:-}" in
+    install)
+        install_iitd_tool_system
+        exit $?
+        ;;
+esac
 
 boot_tool "$@"

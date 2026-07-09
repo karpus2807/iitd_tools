@@ -56,9 +56,12 @@ Required dependencies fixed list: `config/dependencies.list`
 ## Quick Start
 
 ```bash
-cd /path/to/iitd_tool
-chmod +x iitd-config
-sudo ./iitd-config
+git clone https://github.com/karpus2807/iitd_tools.git
+cd iitd_tools
+chmod +x iitd-tool
+sudo ./iitd-tool
+# Menu → IITD Tool Management → Install tool system-wide
+# Phir: sudo iitd-tool
 ```
 
 ## Project Structure
@@ -70,8 +73,12 @@ iitd_tool/
 │   ├── common.sh            # Logging, backup, utilities
 │   ├── detect.sh            # Ubuntu version detection (16.04–26.04)
 │   ├── deps.sh              # Startup dependency check / warmup
+│   ├── install.sh           # System-wide install (iitd-tool install)
+│   ├── paths.sh             # /var/lib/iitd-tool data directories
+│   ├── repo_manage.sh       # Repo submenu actions + restore
 │   ├── repos.sh             # Repo template generation
 │   └── modules.sh           # Module discovery & menu
+├── iitd-tool                # Entry point (same as iitd-config)
 ├── config/
 │   ├── dependencies.list    # APT packages + tool files manifest
 │   ├── repos/
@@ -81,6 +88,8 @@ iitd_tool/
 │   ├── iitd-proxy                  # Bash launcher (python3/python2 auto-detect)
 │   └── iitd-proxy.py               # Proxy logic (Python 2.7 + 3.x compatible)
 └── modules/
+    ├── system/              # Install / uninstall tool
+    │   └── module.sh
     ├── iitd_repo/           # IITD repository setup
     │   └── module.sh
     └── proxy/               # Installs iitd-proxy command (one-time)
@@ -114,14 +123,18 @@ Tool automatically `modules/*/module.sh` files discover karega aur menu mein add
 
 ## IITD Repo Module
 
-Yeh module:
+Submenu — har step alag se chalao:
 
-1. `/etc/apt/sources.list` ka backup leta hai
-2. `sources.list.template` se IITD repo config generate karta hai (`<release>` → detected codename)
-3. `/etc/apt/sources.list.d/ubuntu.sources` ko disable karta hai (`.disabled` rename)
-4. `apt update` chalata hai
+1. Backup sources.list  
+2. Apply IITD mirror (`repo.iitd.ernet.in`)  
+3. Disable ubuntu.sources  
+4. Disable 3rd party repositories  
+5. Run apt update  
+6. Restore original repository status  
 
-Backups: `/etc/apt/iitd-tool-backup/`
+Backups & restore: `/var/lib/iitd-tool/backups/`
+
+System install: `sudo iitd-tool install` → `/etc/iitd-tool`
 
 ## Proxy Module
 

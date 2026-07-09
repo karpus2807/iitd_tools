@@ -13,5 +13,10 @@ file:lib/common.sh
 file:lib/detect.sh
 file:lib/repos.sh
 file:lib/modules.sh
+file:lib/paths.sh
+file:lib/repo_manage.sh
+file:lib/install.sh
+file:iitd-tool
+file:modules/system/module.sh
 file:modules/iitd_repo/module.sh
 file:modules/proxy/module.sh
