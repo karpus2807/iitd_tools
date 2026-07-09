@@ -2,6 +2,7 @@
 # Dependency checks and warmup — runs at tool startup.
 
 DEPS_MANIFEST="${TOOL_ROOT}/config/dependencies.list"
+IITD_REPO_URL="http://repo.iitd.ernet.in/ubuntu/"
 DEPS_STATUS="ok"
 DEPS_WARNINGS=0
 
@@ -184,8 +185,14 @@ install_missing_apt_packages() {
     fi
 
     log_info "Installing missing packages: ${MISSING_APT_PACKAGES[*]}"
-    apt-get update -qq
-    DEBIAN_FRONTEND=noninteractive apt-get install -y "${MISSING_APT_PACKAGES[@]}"
+    if ! apt-get update -qq; then
+        log_warn "apt-get update failed"
+        return 1
+    fi
+    if ! DEBIAN_FRONTEND=noninteractive apt-get install -y "${MISSING_APT_PACKAGES[@]}"; then
+        log_warn "apt-get install failed"
+        return 1
+    fi
 
     local pkg still_missing=()
     for pkg in "${MISSING_APT_PACKAGES[@]}"; do
@@ -201,9 +208,85 @@ install_missing_apt_packages() {
         return 1
     fi
 
-    # Refresh Python path after package install
     find_system_python >/dev/null 2>&1 || true
     return 0
+}
+
+check_internet_access() {
+    if command -v curl >/dev/null 2>&1; then
+        curl -fsS --max-time 10 http://connectivity-check.ubuntu.com/ >/dev/null 2>&1 && return 0
+        curl -fsS --max-time 10 http://archive.ubuntu.com/ubuntu/ >/dev/null 2>&1 && return 0
+    fi
+
+    if command -v wget >/dev/null 2>&1; then
+        wget -q --spider --timeout=10 http://connectivity-check.ubuntu.com/ 2>/dev/null && return 0
+    fi
+
+    ping -c 1 -W 3 8.8.8.8 >/dev/null 2>&1 && return 0
+    return 1
+}
+
+check_iitd_repo_access() {
+    if command -v curl >/dev/null 2>&1; then
+        curl -fsS --max-time 15 "${IITD_REPO_URL}" >/dev/null 2>&1 && return 0
+        curl -fsSI --max-time 15 "${IITD_REPO_URL}" >/dev/null 2>&1 && return 0
+    fi
+
+    if command -v wget >/dev/null 2>&1; then
+        wget -q --spider --timeout=15 "${IITD_REPO_URL}" 2>/dev/null && return 0
+    fi
+
+    return 1
+}
+
+try_direct_dependency_install() {
+    read_dependency_manifest 2>/dev/null || true
+    collect_missing_apt_packages
+
+    if [[ ${#MISSING_APT_PACKAGES[@]} -eq 0 ]] \
+        && [[ -n "${PYTHON_CMD:-}" ]] \
+        && check_python_stdlib_silent; then
+        return 0
+    fi
+
+    echo
+    log_info "Step 1: Trying direct install (without proxy)..."
+    echo
+
+    local net_ok=0 repo_ok=0
+
+    if check_internet_access; then
+        log_success "Internet access: available"
+        net_ok=1
+    else
+        log_warn "Internet access: not detected"
+    fi
+
+    if check_iitd_repo_access; then
+        log_success "IITD repo reachable: ${IITD_REPO_URL}"
+        repo_ok=1
+    else
+        log_warn "IITD repo not reachable: ${IITD_REPO_URL}"
+    fi
+
+    if [[ "${net_ok}" -eq 0 && "${repo_ok}" -eq 0 ]]; then
+        log_warn "No direct network path — proxy failsafe will be used next."
+        return 1
+    fi
+
+    if install_missing_apt_packages; then
+        find_system_python >/dev/null 2>&1 || true
+        collect_missing_apt_packages
+        if [[ ${#MISSING_APT_PACKAGES[@]} -eq 0 ]] \
+            && { [[ -z "${PYTHON_CMD:-}" ]] || check_python_stdlib_silent; }; then
+            log_success "Dependencies installed directly (no proxy needed)."
+            DEPS_STATUS="ok"
+            return 0
+        fi
+    fi
+
+    log_warn "Direct install incomplete — will try proxy failsafe next."
+    return 1
 }
 
 warmup_dependencies() {
@@ -220,13 +303,6 @@ warmup_dependencies() {
     check_tool_files || true
     check_system_commands
     check_apt_packages
-
-    install_missing_apt_packages || true
-
-    # Re-check after possible install
-    if [[ ${#MISSING_APT_PACKAGES[@]} -gt 0 ]]; then
-        collect_missing_apt_packages
-    fi
 
     detect_python 2>/dev/null || deps_warn "System Python not found in /usr/bin"
     check_python_stdlib || true
@@ -299,11 +375,11 @@ run_iitd_proxy_shell() {
 run_failsafe_recovery() {
     echo
     echo -e "${BOLD}${YELLOW}╔══════════════════════════════════════════╗${NC}"
-    echo -e "${BOLD}${YELLOW}║          FAILSAFE MODE                   ║${NC}"
+    echo -e "${BOLD}${YELLOW}║          FAILSAFE MODE (PROXY)           ║${NC}"
     echo -e "${BOLD}${YELLOW}╚══════════════════════════════════════════╝${NC}"
     echo
-    log_warn "Required dependencies are missing."
-    log_info "Starting IITD proxy shell to enable network access..."
+    log_warn "Direct install failed or unavailable."
+    log_info "Step 2: Starting IITD proxy shell for dependency download..."
     log_info "Type 'exit' at Role/Userid prompt to close the tool."
     echo
 
@@ -358,12 +434,16 @@ boot_tool() {
         fi
 
         if [[ "${attempt}" -ge 1 ]]; then
-            log_error "Failsafe recovery did not resolve all dependencies."
+            log_error "Dependency recovery did not resolve all issues."
             exit 1
         fi
 
-        if ! run_failsafe_recovery; then
-            exit 1
+        try_direct_dependency_install || true
+
+        if deps_require_failsafe; then
+            if ! run_failsafe_recovery; then
+                exit 1
+            fi
         fi
 
         echo

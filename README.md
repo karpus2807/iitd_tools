@@ -40,15 +40,12 @@ Tool start hote hi automatically check karta hai:
 
 ### Failsafe mode
 
-Agar dependencies missing hon aur install na ho paaye (IITD network par bina proxy):
+Agar dependencies missing hon:
 
-1. Tool **Failsafe Mode** mein jata hai
-2. Automatically **IITD proxy shell** khulta hai
-3. User **role** + **userid** + **password** deta hai
-4. Proxy enable → missing packages **auto-install**
-5. Tool **normal mode** mein reboot hota hai
+1. **Direct try** — internet + `repo.iitd.ernet.in` check → bina proxy install
+2. **Proxy failsafe** — sirf tab jab direct install fail ho → proxy shell → login → install → normal reboot
 
-Proxy shell se bahar nikalne ke liye Role/Userid prompt par type karo: **`exit`**
+Proxy shell cancel: type **`exit`**
 
 ```bash
 sudo iitd-proxy shell    # manually bhi chala sakte ho

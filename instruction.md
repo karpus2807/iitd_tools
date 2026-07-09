@@ -55,11 +55,12 @@ Password prompt aayega — IITD proxy password do.
 
 ---
 
-## Agar dependencies missing hon (Failsafe)
+## Agar dependencies missing hon
 
-Tool khud proxy shell kholta hai → role + userid + password → packages install → normal mode.
+**Step 1:** Bina proxy — internet + IITD repo check → direct install try  
+**Step 2:** Agar fail ho → Failsafe (proxy shell) → login → install
 
-Cancel karna ho to prompt par likho: **`exit`**
+Cancel: prompt par **`exit`**
 
 ---
 
@@ -67,7 +68,7 @@ Cancel karna ho to prompt par likho: **`exit`**
 
 | Date | Update |
 |------|--------|
-| 2026-07-09 | Initial release — repo module, proxy module, failsafe, GitHub upload |
+| 2026-07-09 | Direct install before proxy failsafe (internet + IITD repo check) |
 
 ---
 
