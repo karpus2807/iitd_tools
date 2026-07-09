@@ -1,0 +1,19 @@
+# IITD Repository - Ubuntu <release> (<version>)
+# Based on official IITD apt configuration guidelines
+# Managed by IITD Lab Setup Tool
+
+# Binary packages
+# ===============
+deb http://repo.iitd.ernet.in/ubuntu <release> main restricted universe multiverse
+deb http://repo.iitd.ernet.in/ubuntu <release>-updates main restricted universe multiverse
+deb http://repo.iitd.ernet.in/ubuntu <release>-security main restricted universe multiverse
+deb http://repo.iitd.ernet.in/ubuntu <release>-backports main restricted universe multiverse
+deb http://repo.iitd.ernet.in/ubuntu <release>-proposed main restricted universe multiverse
+
+# Sources
+# =======
+deb-src http://repo.iitd.ernet.in/ubuntu <release> main restricted universe multiverse
+deb-src http://repo.iitd.ernet.in/ubuntu <release>-updates main restricted universe multiverse
+deb-src http://repo.iitd.ernet.in/ubuntu <release>-security main restricted universe multiverse
+deb-src http://repo.iitd.ernet.in/ubuntu <release>-backports main restricted universe multiverse
+deb-src http://repo.iitd.ernet.in/ubuntu <release>-proposed main restricted universe multiverse

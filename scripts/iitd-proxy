@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# IITD proxy launcher — uses distro system Python only (/usr/bin).
+
+set -euo pipefail
+
+INSTALL_LIB="/usr/local/lib/iitd-tool"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+if [[ -f "${INSTALL_LIB}/iitd-proxy.py" ]]; then
+    PROXY_PY="${INSTALL_LIB}/iitd-proxy.py"
+elif [[ -f "${SCRIPT_DIR}/iitd-proxy.py" ]]; then
+    PROXY_PY="${SCRIPT_DIR}/iitd-proxy.py"
+else
+    echo "iitd-proxy: Python script not found." >&2
+    exit 1
+fi
+
+# Load shared system-Python detection
+if [[ -f "${INSTALL_LIB}/python.sh" ]]; then
+    # shellcheck source=/dev/null
+    source "${INSTALL_LIB}/python.sh"
+elif [[ -f "${SCRIPT_DIR}/../lib/python.sh" ]]; then
+    # shellcheck source=/dev/null
+    source "${SCRIPT_DIR}/../lib/python.sh"
+else
+    echo "iitd-proxy: python.sh not found." >&2
+    exit 1
+fi
+
+log() { :; }  # no-op logger for standalone launcher
+
+if ! find_system_python; then
+    echo "iitd-proxy: system Python not found in /usr/bin (python3 or python2)." >&2
+    echo "iitd-proxy: custom Python installs are intentionally ignored." >&2
+    exit 1
+fi
+
+exec "${PYTHON_CMD}" "${PROXY_PY}" "$@"

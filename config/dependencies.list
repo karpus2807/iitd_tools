@@ -1,0 +1,17 @@
+# IITD Lab Setup Tool — required dependencies only (do not extend casually)
+
+pkg:ca-certificates
+
+file:config/repos/sources.list.template
+file:config/ubuntu-codenames.map
+file:config/dependencies.list
+file:scripts/iitd-proxy.py
+file:scripts/iitd-proxy
+file:lib/python.sh
+file:lib/deps.sh
+file:lib/common.sh
+file:lib/detect.sh
+file:lib/repos.sh
+file:lib/modules.sh
+file:modules/iitd_repo/module.sh
+file:modules/proxy/module.sh

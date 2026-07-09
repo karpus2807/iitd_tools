@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# IITD Lab Ubuntu Setup Tool
+# Configures newly installed Ubuntu systems for IITD lab use.
+#
+# Usage: sudo ./iitd-config
+#        ./iitd-config          (menu works; modules needing root will prompt)
+
+set -euo pipefail
+
+TOOL_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export TOOL_ROOT
+
+# shellcheck source=lib/common.sh
+source "${TOOL_ROOT}/lib/common.sh"
+# shellcheck source=lib/python.sh
+source "${TOOL_ROOT}/lib/python.sh"
+# shellcheck source=lib/repos.sh
+source "${TOOL_ROOT}/lib/repos.sh"
+# shellcheck source=lib/detect.sh
+source "${TOOL_ROOT}/lib/detect.sh"
+# shellcheck source=lib/deps.sh
+source "${TOOL_ROOT}/lib/deps.sh"
+# shellcheck source=lib/modules.sh
+source "${TOOL_ROOT}/lib/modules.sh"
+
+boot_tool "$@"
