@@ -70,6 +70,10 @@ STATE_DIR = "/var/lib/iitd-proxy"
 STATE_FILE = os.path.join(STATE_DIR, "state.json")
 LOG_FILE = "/var/log/iitd-proxy.log"
 
+INSTALL_LIB = "/usr/local/lib/iitd-tool"
+IITD_CA_BASENAME = "CCIITD-CA.crt"
+SYSTEM_CA_CERT_FILE = "/usr/local/share/ca-certificates/iitd-cciitd-ca.crt"
+
 BROWSER_DESKTOP_SOURCES = [
     "/usr/share/applications/google-chrome.desktop",
     "/usr/share/applications/google-chrome-stable.desktop",
@@ -302,11 +306,71 @@ def ensure_user_dir(path, user_info):
         current = os.path.dirname(current)
 
 
-def direct_https_opener(verify_tls=True):
+def proxy_script_dir():
+    return os.path.dirname(os.path.abspath(__file__))
+
+
+def iitd_ca_cert_candidates():
+    script_dir = proxy_script_dir()
+    return [
+        os.path.join(INSTALL_LIB, "certs", IITD_CA_BASENAME),
+        os.path.join(script_dir, "certs", IITD_CA_BASENAME),
+        os.path.join(script_dir, "..", "config", "certs", IITD_CA_BASENAME),
+        SYSTEM_CA_CERT_FILE,
+        "/etc/ssl/certs/iitd-cciitd-ca.pem",
+    ]
+
+
+def find_iitd_ca_cert():
+    for path in iitd_ca_cert_candidates():
+        norm = os.path.normpath(path)
+        if os.path.isfile(norm):
+            return norm
+    return None
+
+
+def install_iitd_ca_system():
+    """Install bundled IITD CA into the system trust store (idempotent)."""
+    bundled = find_iitd_ca_cert()
+    if not bundled:
+        log("IITD CA certificate not found; skipping system trust install.")
+        return "SKIPPED"
+
+    try:
+        mkdir_p(os.path.dirname(SYSTEM_CA_CERT_FILE))
+        shutil.copy2(bundled, SYSTEM_CA_CERT_FILE)
+        os.chmod(SYSTEM_CA_CERT_FILE, 0o644)
+    except (OSError, IOError) as exc:
+        log("Could not install IITD CA certificate: {0}".format(exc))
+        return "FAILED"
+
+    if shutil.which("update-ca-certificates"):
+        result = run_cmd(["update-ca-certificates"], check=False, timeout=60)
+        if result.returncode == 0:
+            log("IITD CA certificate trusted system-wide ({0}).".format(SYSTEM_CA_CERT_FILE))
+            return "OK"
+        log("update-ca-certificates failed (exit {0}).".format(result.returncode))
+        return "FAILED"
+
+    log("update-ca-certificates not found; CA copied but trust store not refreshed.")
+    return "PARTIAL"
+
+
+def direct_https_opener(verify_tls=True, ca_file=None):
+    sslctx = None
     if hasattr(ssl, "create_default_context"):
-        sslctx = ssl.create_default_context() if verify_tls else ssl._create_unverified_context()
-    else:
-        sslctx = None
+        if verify_tls:
+            sslctx = ssl.create_default_context()
+            ca = ca_file
+            if ca is None:
+                ca = find_iitd_ca_cert()
+            if ca:
+                try:
+                    sslctx.load_verify_locations(cafile=ca)
+                except (ssl.SSLError, OSError, IOError) as exc:
+                    log("Could not load IITD CA ({0}): {1}".format(ca, exc))
+        else:
+            sslctx = ssl._create_unverified_context()
 
     if PY3:
         return urllib.request.build_opener(
@@ -349,14 +413,18 @@ def is_certificate_error(exc):
 
 def login(role, prefix, user, password):
     base = get_login_url(role, prefix)
-    opener = direct_https_opener()
+    ca_cert = find_iitd_ca_cert()
+    if ca_cert:
+        log("Using IITD CA certificate: {0}".format(ca_cert))
+
+    opener = direct_https_opener(ca_file=ca_cert)
 
     try:
         html = urlopen_text(opener, base)
     except Exception as exc:
         if not is_certificate_error(exc):
             raise ProxyError("Could not reach IITD proxy login page: {0}".format(exc))
-        log("TLS verification failed on login page; retrying with IITD-only fallback.")
+        log("TLS verification failed; retrying without certificate verification.")
         opener = direct_https_opener(verify_tls=False)
         try:
             html = urlopen_text(opener, base)
@@ -863,6 +931,9 @@ def enable_proxy(role, userid, password):
     log("IITD role: {0}".format(role))
     log("IITD userid: {0}".format(userid))
     log("Proxy endpoint: {0}".format(proxy_url(prefix)))
+
+    ca_status = install_iitd_ca_system()
+    log("IITD CA trust: {0}".format(ca_status))
 
     log("Logging in to IITD proxy...")
     login(role, prefix, userid, password)

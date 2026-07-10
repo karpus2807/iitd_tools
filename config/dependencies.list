@@ -7,6 +7,7 @@ file:config/ubuntu-codenames.map
 file:config/dependencies.list
 file:scripts/iitd-proxy.py
 file:scripts/iitd-proxy
+file:config/certs/CCIITD-CA.crt
 file:lib/python.sh
 file:lib/deps.sh
 file:lib/common.sh

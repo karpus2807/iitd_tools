@@ -63,7 +63,8 @@ Startup: System · Python · Dependencies · Data path
 
 ### `3` — Proxy Setup (Install iitd-proxy)
 
-`iitd-proxy` ek baar install → phir commands se use karo
+`iitd-proxy` ek baar install → phir commands se use karo  
+Install ke saath **IITD CA certificate** (`CCIITD-CA.crt`) system trust store mein add hota hai — campus HTTPS / proxy login ke liye.
 
 ### `4` — Basic Tools Installer
 
@@ -114,7 +115,7 @@ Cancel: **`exit`**
 
 | Date | Update |
 |------|--------|
-| 2026-07-09 | Portable launcher `install-iitd-tool.sh` (pendrive install) |
+| 2026-07-09 | IITD CA certificate (CCIITD-CA.crt) integrated in proxy TLS |
 | 2026-07-09 | Repo submenu, restore, system data dir |
 | 2026-07-09 | Direct install before proxy failsafe |
 

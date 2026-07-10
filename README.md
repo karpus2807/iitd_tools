@@ -97,6 +97,8 @@ iitd_tool/
 ├── config/
 │   ├── dependencies.list    # APT packages + tool files manifest
 │   ├── basic-tools.list     # Checkbox tool package list
+│   ├── certs/
+│   │   └── CCIITD-CA.crt    # IITD internal CA (proxy TLS trust)
 │   ├── repos/
 │   │   └── sources.list.template   # Generic template (<release> placeholder)
 │   └── ubuntu-codenames.map        # Version → codename fallback map
@@ -180,7 +182,10 @@ sudo ./iitd-config
 Yeh install karega:
 - `/usr/local/bin/iitd-proxy` (launcher)
 - `/usr/local/lib/iitd-tool/iitd-proxy.py`
+- `/usr/local/lib/iitd-tool/certs/CCIITD-CA.crt` + system trust store update
 - Dependencies: `python3` ya `python-minimal` (auto-detect) + `ca-certificates`
+
+**IITD CA certificate:** `config/certs/CCIITD-CA.crt` install time par system-wide trusted hota hai (`update-ca-certificates`). Proxy login HTTPS verification is CA ko use karta hai — internal IITD sites par TLS errors kam hote hain.
 
 **Python 2 aur 3 dono supported** — sirf **system Python** use hota hai (`/usr/bin/python3` ya `/usr/bin/python2`). Pyenv, conda, `/usr/local` wale custom Python ignore hote hain.
 
@@ -215,6 +220,7 @@ Pure system se proxy remove ho jayegi.
 | Chromium | `/etc/chromium/policies/managed/` |
 | Firefox | `/etc/firefox/policies/policies.json` |
 | All shell/apps | `/etc/environment`, `/etc/profile.d/`, systemd |
+| IITD CA trust | `/usr/local/share/ca-certificates/iitd-cciitd-ca.crt` |
 
 ### Roles
 
