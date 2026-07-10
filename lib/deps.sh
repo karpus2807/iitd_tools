@@ -214,12 +214,20 @@ install_missing_apt_packages() {
 
 check_internet_access() {
     if command -v curl >/dev/null 2>&1; then
-        curl -fsS --max-time 10 http://connectivity-check.ubuntu.com/ >/dev/null 2>&1 && return 0
-        curl -fsS --max-time 10 http://archive.ubuntu.com/ubuntu/ >/dev/null 2>&1 && return 0
+        if [[ "${OS_ID:-ubuntu}" == "debian" ]]; then
+            curl -fsS --max-time 10 http://deb.debian.org/debian/ >/dev/null 2>&1 && return 0
+        else
+            curl -fsS --max-time 10 http://connectivity-check.ubuntu.com/ >/dev/null 2>&1 && return 0
+            curl -fsS --max-time 10 http://archive.ubuntu.com/ubuntu/ >/dev/null 2>&1 && return 0
+        fi
     fi
 
     if command -v wget >/dev/null 2>&1; then
-        wget -q --spider --timeout=10 http://connectivity-check.ubuntu.com/ 2>/dev/null && return 0
+        if [[ "${OS_ID:-ubuntu}" == "debian" ]]; then
+            wget -q --spider --timeout=10 http://deb.debian.org/debian/ 2>/dev/null && return 0
+        else
+            wget -q --spider --timeout=10 http://connectivity-check.ubuntu.com/ 2>/dev/null && return 0
+        fi
     fi
 
     ping -c 1 -W 3 8.8.8.8 >/dev/null 2>&1 && return 0
@@ -227,13 +235,15 @@ check_internet_access() {
 }
 
 check_iitd_repo_access() {
+    local repo_url="${IITD_REPO_MIRROR_URL:-${IITD_REPO_URL}}"
+
     if command -v curl >/dev/null 2>&1; then
-        curl -fsS --max-time 15 "${IITD_REPO_URL}" >/dev/null 2>&1 && return 0
-        curl -fsSI --max-time 15 "${IITD_REPO_URL}" >/dev/null 2>&1 && return 0
+        curl -fsS --max-time 15 "${repo_url}" >/dev/null 2>&1 && return 0
+        curl -fsSI --max-time 15 "${repo_url}" >/dev/null 2>&1 && return 0
     fi
 
     if command -v wget >/dev/null 2>&1; then
-        wget -q --spider --timeout=15 "${IITD_REPO_URL}" 2>/dev/null && return 0
+        wget -q --spider --timeout=15 "${repo_url}" 2>/dev/null && return 0
     fi
 
     return 1
@@ -263,10 +273,10 @@ try_direct_dependency_install() {
     fi
 
     if check_iitd_repo_access; then
-        log_success "IITD repo reachable: ${IITD_REPO_URL}"
+        log_success "IITD repo reachable: ${IITD_REPO_MIRROR_URL:-${IITD_REPO_URL}}"
         repo_ok=1
     else
-        log_warn "IITD repo not reachable: ${IITD_REPO_URL}"
+        log_warn "IITD repo not reachable: ${IITD_REPO_MIRROR_URL:-${IITD_REPO_URL}}"
     fi
 
     if [[ "${net_ok}" -eq 0 && "${repo_ok}" -eq 0 ]]; then

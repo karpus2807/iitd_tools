@@ -51,6 +51,28 @@ install_dependencies() {
     DEBIAN_FRONTEND=noninteractive apt-get install -y "${missing[@]}"
 }
 
+remove_legacy_iitd_ca_certificate() {
+    local removed=0
+    local f
+
+    for f in \
+        "/usr/local/share/ca-certificates/iitd-cciitd-ca.crt" \
+        "/usr/local/lib/iitd-tool/certs/CCIITD-CA.crt"; do
+        if [[ -f "${f}" ]]; then
+            rm -f "${f}"
+            log_info "Removed legacy IITD CA certificate: ${f}"
+            removed=1
+        fi
+    done
+
+    rmdir "${INSTALL_DIR}/certs" 2>/dev/null || true
+
+    if [[ "${removed}" -eq 1 ]] && command -v update-ca-certificates >/dev/null 2>&1; then
+        update-ca-certificates
+        log_info "Refreshed system CA trust store"
+    fi
+}
+
 install_iitd_proxy() {
     if [[ ! -f "${SOURCE_LAUNCHER}" ]] || [[ ! -f "${SOURCE_PY}" ]]; then
         log_error "iitd-proxy files not found under ${TOOL_ROOT}/scripts/"
@@ -58,6 +80,7 @@ install_iitd_proxy() {
     fi
 
     mkdir -p "${INSTALL_DIR}"
+    remove_legacy_iitd_ca_certificate
     install -m 0755 "${SOURCE_LAUNCHER}" "${INSTALL_BIN}"
     install -m 0644 "${SOURCE_PY}" "${INSTALL_DIR}/iitd-proxy.py"
     install -m 0644 "${TOOL_ROOT}/lib/python.sh" "${INSTALL_DIR}/python.sh"
@@ -88,6 +111,7 @@ show_usage() {
     echo "  sudo iitd-proxy logout"
     echo
     echo "Proxy applies to: apt, snap, GNOME GUI, wget, curl, Chrome, Chromium, Firefox"
+    echo "HTTPS login uses system CAs first; TLS verify-off fallback if needed (no custom cert)."
     echo "Run the enable command again anytime to switch role or user."
 }
 

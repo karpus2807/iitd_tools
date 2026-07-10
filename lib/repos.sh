@@ -2,12 +2,14 @@
 # Repository template generation
 
 REPO_TEMPLATE="${TOOL_ROOT}/config/repos/sources.list.template"
+DEBIAN_REPO_TEMPLATE="${TOOL_ROOT}/config/repos/debian.sources.list.template"
 CODENAME_MAP="${TOOL_ROOT}/config/ubuntu-codenames.map"
 
 lookup_codename() {
     local version="$1"
+    local map_file="${2:-${OS_CODENAME_MAP:-${CODENAME_MAP}}}"
 
-    if [[ ! -f "${CODENAME_MAP}" ]]; then
+    if [[ ! -f "${map_file}" ]]; then
         return 1
     fi
 
@@ -18,30 +20,35 @@ lookup_codename() {
             echo "${codename}"
             return 0
         fi
-    done < "${CODENAME_MAP}"
+    done < "${map_file}"
 
     return 1
 }
 
 generate_sources_list() {
-    local ubuntu_version="$1"
-    local ubuntu_codename="$2"
+    local os_version="$1"
+    local os_codename="$2"
     local output_file="$3"
+    local template="${REPO_TEMPLATE}"
 
-    if [[ ! -f "${REPO_TEMPLATE}" ]]; then
-        log_error "Repo template not found: ${REPO_TEMPLATE}"
+    if [[ "${OS_ID:-ubuntu}" == "debian" ]]; then
+        template="${DEBIAN_REPO_TEMPLATE}"
+    fi
+
+    if [[ ! -f "${template}" ]]; then
+        log_error "Repo template not found: ${template}"
         return 1
     fi
 
-    if [[ -z "${ubuntu_codename}" ]]; then
-        log_error "Ubuntu codename (release) is required for repo setup"
+    if [[ -z "${os_codename}" ]]; then
+        log_error "Release codename is required for repo setup"
         return 1
     fi
 
     sed \
-        -e "s/<release>/${ubuntu_codename}/g" \
-        -e "s/<version>/${ubuntu_version}/g" \
-        "${REPO_TEMPLATE}" > "${output_file}"
+        -e "s/<release>/${os_codename}/g" \
+        -e "s/<version>/${os_version}/g" \
+        "${template}" > "${output_file}"
 
-    log_success "Generated sources.list for ${ubuntu_version} (${ubuntu_codename})"
+    log_success "Generated sources.list for ${os_version} (${os_codename})"
 }

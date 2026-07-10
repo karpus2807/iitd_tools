@@ -4,6 +4,8 @@ pkg:ca-certificates
 
 file:config/repos/sources.list.template
 file:config/ubuntu-codenames.map
+file:config/debian-codenames.map
+file:config/repos/debian.sources.list.template
 file:config/dependencies.list
 file:scripts/iitd-proxy.py
 file:scripts/iitd-proxy

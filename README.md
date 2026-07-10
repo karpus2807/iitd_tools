@@ -1,17 +1,17 @@
 # IITD Lab Ubuntu Setup Tool
 
-Ubuntu lab systems (16.04 se 26.04 tak) ke liye configuration tool — proxy, IITD apt mirror, aur aage aur modules.
+Ubuntu aur Debian lab systems ke liye configuration tool — proxy, IITD apt mirror, aur aage aur modules.
 
 ## Features
 
-- **Auto Ubuntu detection** — version detect karke release codename ke saath kaam karta hai
+- **Auto OS detection** — Ubuntu (16.04–26.04) aur Debian (10–13) detect karke release codename ke saath kaam karta hai
 - **Menu-driven** — interactive module selection
 - **Modular architecture** — naya module add karo, menu mein automatically dikhega
 - **IITD Repo module** — `/etc/apt/sources.list` mein `repo.iitd.ernet.in`, official `ubuntu.sources` disable
 
-## Supported Ubuntu Versions
+## Supported Operating Systems
 
-**16.04 LTS se 26.04 LTS tak** — koi bhi Ubuntu version is range mein kaam karega.
+### Ubuntu: **16.04 LTS – 26.04 LTS**
 
 Repo config ek hi template se generate hoti hai; sirf release codename (jaise `focal`, `jammy`, `noble`, `resolute`) automatically lag jata hai.
 
@@ -28,11 +28,22 @@ Poore mapping ke liye dekho: `config/ubuntu-codenames.map`
 
 Nayi Ubuntu release aaye to sirf us file mein ek line add karo — alag repo file banane ki zaroorat nahi.
 
+### Debian: **10 – 13**
+
+| Version | Codename |
+|---------|----------|
+| 10 | buster |
+| 11 | bullseye |
+| 12 | bookworm |
+| 13 | trixie |
+
+Mapping: `config/debian-codenames.map` · Repo template: `config/repos/debian.sources.list.template`
+
 ## Startup Warmup (Dependency Check)
 
 Tool start hote hi automatically check karta hai:
 
-1. **OS** — Ubuntu version + codename
+1. **OS** — Ubuntu / Debian version + codename
 2. **Python** — system `/usr/bin` Python 2/3
 3. **APT packages** — `ca-certificates`, `python3` / `python-minimal`
 4. **Python stdlib** — `iitd-proxy` ke liye zaroori modules
@@ -85,7 +96,7 @@ iitd_tool/
 ├── iitd-config              # Main entry script
 ├── lib/
 │   ├── common.sh            # Logging, backup, utilities
-│   ├── detect.sh            # Ubuntu version detection (16.04–26.04)
+│   ├── detect.sh            # Ubuntu / Debian version detection
 │   ├── deps.sh              # Startup dependency check / warmup
 │   ├── install.sh           # System-wide install (iitd-tool install)
 │   ├── paths.sh             # /var/lib/iitd-tool data directories
@@ -98,8 +109,10 @@ iitd_tool/
 │   ├── dependencies.list    # APT packages + tool files manifest
 │   ├── basic-tools.list     # Checkbox tool package list
 │   ├── repos/
-│   │   └── sources.list.template   # Generic template (<release> placeholder)
+│   │   └── sources.list.template   # Ubuntu IITD mirror template
+│   │   └── debian.sources.list.template
 │   └── ubuntu-codenames.map        # Version → codename fallback map
+│   └── debian-codenames.map
 ├── scripts/
 │   ├── iitd-proxy                  # Bash launcher (python3/python2 auto-detect)
 │   └── iitd-proxy.py               # Proxy logic (Python 2.7 + 3.x compatible)
@@ -232,6 +245,6 @@ Log file: `/var/log/iitd-proxy.log`
 ## Requirements
 
 - Bash 4+
-- Ubuntu 16.04 to 26.04
+- Ubuntu 16.04 to 26.04 **or** Debian 10 to 13
 - Python 2.7 **or** Python 3.x from `/usr/bin` only (distro-managed; custom installs ignored)
 - Root access (sudo) for system configuration modules

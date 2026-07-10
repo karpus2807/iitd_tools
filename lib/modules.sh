@@ -80,7 +80,7 @@ module_is_supported() {
 show_main_menu() {
     clear
     echo -e "${BOLD}${CYAN}╔══════════════════════════════════════════╗${NC}"
-    echo -e "${BOLD}${CYAN}║     IITD Lab Ubuntu Setup Tool           ║${NC}"
+    echo -e "${BOLD}${CYAN}║     IITD Lab Setup Tool                  ║${NC}"
     echo -e "${BOLD}${CYAN}╚══════════════════════════════════════════╝${NC}"
     echo
     print_system_info
@@ -149,7 +149,7 @@ run_main_menu() {
         local module_id="${MODULE_IDS[$((choice - 1))]}"
 
         if ! module_is_supported "${module_id}"; then
-            log_error "Module '${MODULE_NAMES[${module_id}]}' does not support Ubuntu ${UBUNTU_VERSION}"
+            log_error "Module '${MODULE_NAMES[${module_id}]}' does not support ${OS_ID:-ubuntu} ${UBUNTU_VERSION}"
             pause
             continue
         fi

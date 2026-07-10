@@ -344,24 +344,65 @@ def urlopen_text(opener, url, data=None, timeout=20):
 
 def is_certificate_error(exc):
     text = str(exc).lower()
-    return "certificate_verify_failed" in text or "certificate verify failed" in text
+    return (
+        "certificate_verify_failed" in text
+        or "certificate verify failed" in text
+        or "ssl: certificate_verify_failed" in text
+    )
+
+
+LEGACY_IITD_CA_PATHS = (
+    "/usr/local/share/ca-certificates/iitd-cciitd-ca.crt",
+    "/usr/local/lib/iitd-tool/certs/CCIITD-CA.crt",
+)
+
+
+def remove_legacy_iitd_ca_files():
+    """Remove old custom IITD CA files from a previous tool version."""
+    removed = False
+
+    for path in LEGACY_IITD_CA_PATHS:
+        if path_exists(path):
+            try:
+                os.remove(path)
+                log("Removed legacy IITD CA file: {0}".format(path))
+                removed = True
+            except (OSError, IOError) as exc:
+                log("Could not remove legacy IITD CA file {0}: {1}".format(path, exc))
+
+    certs_dir = "/usr/local/lib/iitd-tool/certs"
+    if path_exists(certs_dir):
+        try:
+            if not os.listdir(certs_dir):
+                os.rmdir(certs_dir)
+        except (OSError, IOError):
+            pass
+
+    if removed and shutil.which("update-ca-certificates"):
+        run_cmd(["update-ca-certificates"], check=False, timeout=60)
+
+
+def urlopen_with_tls_fallback(url, data=None, timeout=20):
+    """Try HTTPS with verification first; fall back without verification on TLS errors."""
+    opener = direct_https_opener(verify_tls=True)
+
+    try:
+        return urlopen_text(opener, url, data=data, timeout=timeout)
+    except Exception as exc:
+        if not is_certificate_error(exc):
+            raise
+        log("TLS verification failed; retrying without certificate verification.")
+        opener = direct_https_opener(verify_tls=False)
+        return urlopen_text(opener, url, data=data, timeout=timeout)
 
 
 def login(role, prefix, user, password):
     base = get_login_url(role, prefix)
-    opener = direct_https_opener()
 
     try:
-        html = urlopen_text(opener, base)
+        html = urlopen_with_tls_fallback(base)
     except Exception as exc:
-        if not is_certificate_error(exc):
-            raise ProxyError("Could not reach IITD proxy login page: {0}".format(exc))
-        log("TLS verification failed on login page; retrying with IITD-only fallback.")
-        opener = direct_https_opener(verify_tls=False)
-        try:
-            html = urlopen_text(opener, base)
-        except Exception as retry_exc:
-            raise ProxyError("Could not reach IITD proxy login page: {0}".format(retry_exc))
+        raise ProxyError("Could not reach IITD proxy login page: {0}".format(exc))
 
     parser = SessionParser()
     parser.feed(html)
@@ -381,7 +422,7 @@ def login(role, prefix, user, password):
         encoded = urllib_parse.urlencode(form)
 
     try:
-        response = urlopen_text(opener, base, data=encoded)
+        response = urlopen_with_tls_fallback(base, data=encoded)
     except Exception as exc:
         raise ProxyError("IITD proxy login request failed: {0}".format(exc))
 
@@ -858,6 +899,8 @@ def remove_user_tools():
 def enable_proxy(role, userid, password):
     require_root()
     prefix = PREFIX_MAP[role]
+
+    remove_legacy_iitd_ca_files()
 
     log("Python runtime: {0}.{1}".format(sys.version_info[0], sys.version_info[1]))
     log("IITD role: {0}".format(role))

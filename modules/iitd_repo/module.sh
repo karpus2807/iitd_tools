@@ -11,6 +11,9 @@ module_supported_versions() {
 }
 
 show_repo_submenu() {
+    local official_src
+    official_src="$(official_sources_filename)"
+
     clear
     echo -e "${BOLD}${CYAN}IITD Repository Setup${NC}"
     echo
@@ -20,7 +23,7 @@ show_repo_submenu() {
     echo -e "${BOLD}Submenu:${NC}"
     echo "  1) Backup sources.list"
     echo "  2) Apply IITD mirror (sources.list)"
-    echo "  3) Disable ubuntu.sources"
+    echo "  3) Disable ${official_src}"
     echo "  4) Disable 3rd party repositories"
     echo "  5) Run apt update"
     echo "  6) Restore original repository status"
@@ -55,7 +58,7 @@ module_run() {
                 ;;
             3)
                 echo
-                if confirm "Disable ${UBUNTU_SOURCES}?"; then
+                if confirm "Disable ${SOURCES_LIST_D}/$(official_sources_filename)?"; then
                     repo_action_disable_ubuntu_sources || true
                 else
                     log_info "Cancelled."

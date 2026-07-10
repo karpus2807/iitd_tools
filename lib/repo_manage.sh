@@ -4,6 +4,7 @@
 SOURCES_LIST="/etc/apt/sources.list"
 SOURCES_LIST_D="/etc/apt/sources.list.d"
 UBUNTU_SOURCES="${SOURCES_LIST_D}/ubuntu.sources"
+DEBIAN_SOURCES="${SOURCES_LIST_D}/debian.sources"
 
 _manifest_add() {
     local key="$1"
@@ -85,16 +86,21 @@ repo_action_disable_ubuntu_sources() {
     require_root
     init_iitd_data_dirs
 
-    if [[ ! -f "${UBUNTU_SOURCES}" ]]; then
-        log_info "ubuntu.sources not found (may already be disabled)"
+    local official_name official_path
+    official_name="$(official_sources_filename)"
+    official_path="${SOURCES_LIST_D}/${official_name}"
+
+    if [[ ! -f "${official_path}" ]]; then
+        log_info "${official_name} not found (may already be disabled)"
         return 0
     fi
 
-    _save_original_once "${UBUNTU_SOURCES}" "ubuntu.sources"
-    _backup_timestamped "${UBUNTU_SOURCES}" "ubuntu.sources" >/dev/null
-    mv "${UBUNTU_SOURCES}" "${UBUNTU_SOURCES}.disabled"
-    _manifest_add "ubuntu_sources" "disabled"
-    log_success "Disabled: ${UBUNTU_SOURCES} -> ${UBUNTU_SOURCES}.disabled"
+    _save_original_once "${official_path}" "${official_name}"
+    _backup_timestamped "${official_path}" "${official_name}" >/dev/null
+    mv "${official_path}" "${official_path}.disabled"
+    _manifest_add "official_sources" "disabled"
+    _manifest_add "official_sources_name" "${official_name}"
+    log_success "Disabled: ${official_path} -> ${official_path}.disabled"
 }
 
 repo_action_disable_third_party() {
@@ -110,6 +116,7 @@ repo_action_disable_third_party() {
 
         [[ "${base}" == *.disabled ]] && continue
         [[ "${base}" == "ubuntu.sources" ]] && continue
+        [[ "${base}" == "debian.sources" ]] && continue
 
         _save_original_once "${f}" "${base}"
         _backup_timestamped "${f}" "${base}" >/dev/null
@@ -159,10 +166,20 @@ repo_action_restore_all() {
         log_warn "No sources.list.original snapshot — skipped"
     fi
 
-    # Re-enable ubuntu.sources
+    # Re-enable official DEB822 sources (ubuntu.sources / debian.sources)
+    local official_name
+    official_name="$(official_sources_filename)"
+    if [[ -f "${SOURCES_LIST_D}/${official_name}.disabled" ]]; then
+        mv "${SOURCES_LIST_D}/${official_name}.disabled" "${SOURCES_LIST_D}/${official_name}"
+        log_success "Re-enabled ${SOURCES_LIST_D}/${official_name}"
+    fi
     if [[ -f "${UBUNTU_SOURCES}.disabled" ]]; then
         mv "${UBUNTU_SOURCES}.disabled" "${UBUNTU_SOURCES}"
         log_success "Re-enabled ${UBUNTU_SOURCES}"
+    fi
+    if [[ -f "${DEBIAN_SOURCES}.disabled" ]]; then
+        mv "${DEBIAN_SOURCES}.disabled" "${DEBIAN_SOURCES}"
+        log_success "Re-enabled ${DEBIAN_SOURCES}"
     fi
 
     # Re-enable third party repos from manifest

@@ -3,7 +3,7 @@
 > Project change hone par yahi file update karo.  
 > Repo: https://github.com/karpus2807/iitd_tools
 
-Ubuntu **16.04 – 26.04** lab systems ke liye — IITD repo + proxy setup.
+Ubuntu **16.04 – 26.04** aur Debian **10 – 13** lab systems ke liye — IITD repo + proxy setup.
 
 ---
 
@@ -55,7 +55,7 @@ Startup: System · Python · Dependencies · Data path
 |---|--------|
 | 1 | Backup sources.list |
 | 2 | Apply IITD mirror |
-| 3 | Disable ubuntu.sources |
+| 3 | Disable ubuntu.sources / debian.sources |
 | 4 | Disable 3rd party repos |
 | 5 | Run apt update |
 | 6 | Restore original status |
@@ -63,7 +63,8 @@ Startup: System · Python · Dependencies · Data path
 
 ### `3` — Proxy Setup (Install iitd-proxy)
 
-`iitd-proxy` ek baar install → phir commands se use karo
+`iitd-proxy` ek baar install → phir commands se use karo  
+**TLS:** koi custom certificate nahi — pehle system CA, fail ho to verify-off fallback.
 
 ### `4` — Basic Tools Installer
 
@@ -115,7 +116,8 @@ Cancel: **`exit`**
 | Date | Update |
 |------|--------|
 | 2026-07-09 | Portable launcher `install-iitd-tool.sh` (pendrive install) |
-| 2026-07-09 | Repo submenu, restore, system data dir |
+| 2026-07-10 | Proxy TLS: custom CA removed, verify-off fallback only |
+| 2026-07-10 | Debian 10–13 OS support added (Ubuntu + Debian) |
 | 2026-07-09 | Direct install before proxy failsafe |
 
 ---
