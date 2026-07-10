@@ -11,8 +11,6 @@ INSTALL_DIR="/usr/local/lib/iitd-tool"
 INSTALL_BIN="/usr/local/bin/iitd-proxy"
 SOURCE_LAUNCHER="${TOOL_ROOT}/scripts/iitd-proxy"
 SOURCE_PY="${TOOL_ROOT}/scripts/iitd-proxy.py"
-SOURCE_CA="${TOOL_ROOT}/config/certs/CCIITD-CA.crt"
-SYSTEM_CA_DEST="/usr/local/share/ca-certificates/iitd-cciitd-ca.crt"
 
 module_supported_versions() {
     echo "all"
@@ -53,24 +51,6 @@ install_dependencies() {
     DEBIAN_FRONTEND=noninteractive apt-get install -y "${missing[@]}"
 }
 
-install_iitd_ca_certificate() {
-    if [[ ! -f "${SOURCE_CA}" ]]; then
-        log_warn "IITD CA certificate not found: ${SOURCE_CA}"
-        return 1
-    fi
-
-    mkdir -p "${INSTALL_DIR}/certs"
-    install -m 0644 "${SOURCE_CA}" "${INSTALL_DIR}/certs/CCIITD-CA.crt"
-    install -m 0644 "${SOURCE_CA}" "${SYSTEM_CA_DEST}"
-
-    if command -v update-ca-certificates >/dev/null 2>&1; then
-        update-ca-certificates
-        log_success "IITD CA certificate trusted system-wide"
-    else
-        log_warn "update-ca-certificates not found — CA copied but trust store not refreshed"
-    fi
-}
-
 install_iitd_proxy() {
     if [[ ! -f "${SOURCE_LAUNCHER}" ]] || [[ ! -f "${SOURCE_PY}" ]]; then
         log_error "iitd-proxy files not found under ${TOOL_ROOT}/scripts/"
@@ -82,14 +62,9 @@ install_iitd_proxy() {
     install -m 0644 "${SOURCE_PY}" "${INSTALL_DIR}/iitd-proxy.py"
     install -m 0644 "${TOOL_ROOT}/lib/python.sh" "${INSTALL_DIR}/python.sh"
 
-    install_iitd_ca_certificate || log_warn "IITD CA certificate install skipped"
-
     log_success "Installed ${INSTALL_BIN}"
     log_success "Installed ${INSTALL_DIR}/iitd-proxy.py"
     log_success "Installed ${INSTALL_DIR}/python.sh"
-    if [[ -f "${INSTALL_DIR}/certs/CCIITD-CA.crt" ]]; then
-        log_success "Installed ${INSTALL_DIR}/certs/CCIITD-CA.crt"
-    fi
 }
 
 show_usage() {
@@ -113,7 +88,6 @@ show_usage() {
     echo "  sudo iitd-proxy logout"
     echo
     echo "Proxy applies to: apt, snap, GNOME GUI, wget, curl, Chrome, Chromium, Firefox"
-    echo "IITD CA certificate (CCIITD-CA.crt) is installed for trusted HTTPS on campus networks."
     echo "Run the enable command again anytime to switch role or user."
 }
 
