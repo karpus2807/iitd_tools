@@ -4,8 +4,8 @@
 IIT Delhi proxy helper for Ubuntu 16.04 through 26.04.
 Compatible with Python 2.7 and Python 3.x.
 
-  sudo iitd-proxy <role> <userid>
-  sudo iitd-proxy logout
+  iitd-proxy <role> <userid>
+  iitd-proxy logout
 """
 
 from __future__ import print_function, unicode_literals
@@ -197,7 +197,10 @@ def run_cmd(cmd, check=True, timeout=None, env=None):
 
 def require_root():
     if os.geteuid() != 0:
-        raise ProxyError("Root required. Run: sudo iitd-proxy <role> <userid>")
+        raise ProxyError(
+            "Root required. After Proxy Setup install, run: iitd-proxy <role> <userid> "
+            "(no sudo). Or ask an admin to reinstall iitd-proxy."
+        )
 
 
 def proxy_host(prefix):
@@ -1032,11 +1035,12 @@ def build_parser():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "Examples:\n"
-            "  sudo iitd-proxy staff krajaymeena\n"
-            "  sudo iitd-proxy phd ankit\n"
-            "  sudo iitd-proxy btech USERID\n"
-            "  sudo iitd-proxy logout\n"
-            "  sudo iitd-proxy shell\n\n"
+            "  iitd-proxy staff krajaymeena\n"
+            "  iitd-proxy phd ankit\n"
+            "  iitd-proxy btech USERID\n"
+            "  iitd-proxy logout\n"
+            "  iitd-proxy shell\n\n"
+            "After Proxy Setup install, any user can run these without typing sudo.\n"
             "Roles: {0}\n\n"
             "Works with Python 2.7 and Python 3.x."
         ).format(roles),

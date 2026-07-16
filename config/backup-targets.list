@@ -1,0 +1,17 @@
+# Extensible backup targets for IITD Lab Setup Tool
+# Format (one per line):
+#   id|Display name|absolute_path|backup_label
+#
+# - id            : unique key (used in menus)
+# - Display name  : shown in Backup/Restore particular menus
+# - absolute_path : live file on the system
+# - backup_label  : prefix under /var/lib/iitd-tool/backups/
+#                   creates: {label}.original and {label}.TIMESTAMP.bak
+#
+# To add a new target later: append a line here (or call backups_register
+# from modules/<name>/backup_targets.sh). No other menu code needed.
+
+sources.list|APT sources.list|/etc/apt/sources.list|sources.list
+ubuntu.sources|Ubuntu official DEB822 sources|/etc/apt/sources.list.d/ubuntu.sources|ubuntu.sources
+debian.sources|Debian official DEB822 sources|/etc/apt/sources.list.d/debian.sources|debian.sources
+snmpd.conf|SNMP daemon config (snmpd.conf)|/etc/snmp/snmpd.conf|snmpd.conf

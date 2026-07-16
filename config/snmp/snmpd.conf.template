@@ -1,0 +1,56 @@
+###########################################################################
+#
+# SNMPD Configuration — managed by IITD Lab Setup Tool
+# SNMP Version : v2c
+#
+###########################################################################
+
+#############################
+# System Information
+#############################
+
+sysLocation    <sysLocation>
+sysContact     <sysContact>
+sysServices    72
+
+#############################
+# Agent Mode
+#############################
+
+master agentx
+
+#############################
+# Listen on all IPv4 interfaces
+#############################
+
+agentaddress udp:161,udp6:[::1]:161
+
+#############################
+# Access Control
+#############################
+
+view systemonly included .1.3.6.1.2.1.1
+view systemonly included .1.3.6.1.2.1.25.1
+
+#############################
+# SNMP Community
+#############################
+
+# Allow only Monitoring Server
+rocommunity cse!005 10.208.20.30
+
+#############################
+# Custom Hardware Information
+#############################
+
+extend hardware /bin/cat /sys/devices/virtual/dmi/id/product_name
+extend manufacturer /bin/cat /sys/devices/virtual/dmi/id/sys_vendor
+
+#############################
+# Optional
+#############################
+
+# Uncomment if your system has this directory.
+# On many Ubuntu systems this directory does not exist.
+#
+# includeDir /etc/snmp/snmpd.conf.d

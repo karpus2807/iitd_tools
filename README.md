@@ -59,7 +59,7 @@ Agar dependencies missing hon:
 Proxy shell cancel: type **`exit`**
 
 ```bash
-sudo iitd-proxy shell    # manually bhi chala sakte ho
+iitd-proxy shell    # manually bhi chala sakte ho (no sudo)
 ```
 
 Required dependencies fixed list: `config/dependencies.list`
@@ -103,11 +103,18 @@ iitd_tool/
 │   ├── repo_manage.sh       # Repo submenu actions + restore
 │   ├── repos.sh             # Repo template generation
 │   ├── tools_install.sh     # Basic tools checkbox installer
+│   ├── ssl_fix.sh           # SSL / CA trust repair
+│   ├── backups.sh           # Unified backups list / menu helpers
+│   ├── updater.sh           # GitHub updater (latest 5)
+│   ├── snmp.sh              # SNMP install / config / remove
 │   └── modules.sh           # Module discovery & menu
 ├── iitd-tool                # Entry point (same as iitd-config)
 ├── config/
 │   ├── dependencies.list    # APT packages + tool files manifest
 │   ├── basic-tools.list     # Checkbox tool package list
+│   ├── backup-targets.list  # Extensible backup registry
+│   ├── snmp/
+│   │   └── snmpd.conf.template
 │   ├── repos/
 │   │   └── sources.list.template   # Ubuntu IITD mirror template
 │   │   └── debian.sources.list.template
@@ -119,13 +126,34 @@ iitd_tool/
 └── modules/
     ├── system/              # Install / uninstall tool
     │   └── module.sh
+    ├── updater/             # GitHub tool update / downgrade
+    │   └── module.sh
+    ├── backups/             # Backups list + full restore
+    │   └── module.sh
     ├── iitd_repo/           # IITD repository setup
     │   └── module.sh
     └── proxy/               # Installs iitd-proxy command (one-time)
         └── module.sh
     └── basic_tools/         # Checkbox installer for common CLI tools
         └── module.sh
+    └── ssl_fix/             # Repair CA trust / certificate verify errors
+        └── module.sh
+    └── snmp/                # snmpd install / config / remove
+        └── module.sh
+        └── backup_targets.sh
 ```
+
+## SNMP Setup
+
+Menu **SNMP Setup**:
+
+1. Install from apt (`snmpd`, `snmp`)  
+2. Config — prompts **sysLocation** + **sysContact**, writes `/etc/snmp/snmpd.conf` from template  
+3. Remove SNMP config  
+4. Remove SNMP packages (purge)  
+
+Template defaults: SNMPv2c, `rocommunity cse!005 10.208.20.30`, UDP 161, DMI `extend` lines.  
+`snmpd.conf` is registered in Backups & Restore.
 
 ## Adding a New Module
 
@@ -167,6 +195,39 @@ Backups & restore: `/var/lib/iitd-tool/backups/`
 
 System install: `sudo iitd-tool install` → `/etc/iitd-tool`
 
+## Tool Updater
+
+Menu **Tool Updater** — GitHub (`karpus2807/iitd_tools`) se latest 5 releases/tags/commits dikhata hai.
+
+- Koi bhi entry choose karke upgrade **ya** downgrade  
+- Update ke dauran **Do NOT cancel** warning  
+- `/etc/iitd-tool` clean + reinstall; `/var/lib/iitd-tool/backups` **preserve**  
+- Install ke baad backups list show  
+
+## Backups & Restore
+
+Unified **extensible** menu:
+
+1. Backup all registered targets  
+2. Restore all  
+3. Backup particular  
+4. Restore particular (pick target + snapshot)  
+5. List backup files  
+6. Show registered targets  
+
+**Add a target (no menu code change):**
+
+```text
+# config/backup-targets.list
+my.conf|My config|/etc/my.conf|my.conf
+```
+
+Or `modules/<name>/backup_targets.sh`:
+
+```bash
+backups_register "my.conf" "My config" "/etc/my.conf" "my.conf"
+```
+
 ## Basic Tools Module
 
 Menu option **Basic Tools Installer** — common CLI tools checkbox list se install karo.
@@ -179,11 +240,22 @@ Menu option **Basic Tools Installer** — common CLI tools checkbox list se inst
 
 Already installed packages list mein `[installed]` dikhte hain; sirf missing packages install hote hain.
 
+## SSL Fix Module
+
+Menu option **SSL Fix** — certificate / TLS trust issues theek karta hai:
+
+1. Legacy custom IITD/CCIITD CA files remove  
+2. `ca-certificates` reinstall  
+3. `update-ca-certificates --fresh`  
+4. System time hint + optional HTTPS test  
+
+Campus pe updates ke liye SSL Fix ke baad proxy ON rakho (`iitd-proxy`).
+
 ## Proxy Module
 
-Proxy module **sirf ek baar** `iitd-proxy` command system mein install karta hai. Uske baad proxy enable/disable baar-baar command se hota hai.
+Proxy module **sirf ek baar** admin `sudo iitd-tool` se install karta hai. Uske baad **kisi bhi user** se proxy enable/disable bina `sudo` type kiye.
 
-### Step 1: Install (ek baar, iitd-config se)
+### Step 1: Install (ek baar, admin / sudo)
 
 ```bash
 sudo ./iitd-config
@@ -191,26 +263,27 @@ sudo ./iitd-config
 ```
 
 Yeh install karega:
-- `/usr/local/bin/iitd-proxy` (launcher)
+- `/usr/local/bin/iitd-proxy` (launcher — non-root pe auto-elevate)
 - `/usr/local/lib/iitd-tool/iitd-proxy.py`
+- `/etc/sudoers.d/iitd-proxy` (NOPASSWD — password prompt nahi)
 - Dependencies: `python3` ya `python-minimal` (auto-detect) + `ca-certificates`
 
 **Python 2 aur 3 dono supported** — sirf **system Python** use hota hai (`/usr/bin/python3` ya `/usr/bin/python2`). Pyenv, conda, `/usr/local` wale custom Python ignore hote hain.
 
-### Step 2: Proxy enable (jitni baar chaho)
+### Step 2: Proxy enable (kisi bhi user, bina sudo)
 
 ```bash
-sudo iitd-proxy staff krajaymeena
-sudo iitd-proxy phd ankit
-sudo iitd-proxy btech USERID
+iitd-proxy staff krajaymeena
+iitd-proxy phd ankit
+iitd-proxy btech USERID
 ```
 
-Password prompt aayega (IITD kerberos/proxy password).
+Password prompt aayega (IITD kerberos/proxy password — local sudo password nahi).
 
 ### Step 3: Proxy hatana (logout)
 
 ```bash
-sudo iitd-proxy logout
+iitd-proxy logout
 ```
 
 Pure system se proxy remove ho jayegi.

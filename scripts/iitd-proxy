@@ -1,10 +1,35 @@
 #!/usr/bin/env bash
 # IITD proxy launcher — uses distro system Python only (/usr/bin).
+# After Proxy Setup install: any user can run this without typing sudo
+# (passwordless sudoers rule escalates to root automatically).
 
 set -euo pipefail
 
 INSTALL_LIB="/usr/local/lib/iitd-tool"
+INSTALL_BIN="/usr/local/bin/iitd-proxy"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SELF="$(readlink -f "${BASH_SOURCE[0]}")"
+
+# Auto-elevate: system config needs root, but users should not type sudo.
+if [[ "${EUID}" -ne 0 ]]; then
+    if [[ "${IITD_PROXY_ELEVATED:-0}" == "1" ]]; then
+        echo "iitd-proxy: root privileges required but elevation failed." >&2
+        echo "iitd-proxy: ask an admin to reinstall via: sudo iitd-tool → Proxy Setup" >&2
+        exit 1
+    fi
+
+    if ! command -v sudo >/dev/null 2>&1; then
+        echo "iitd-proxy: sudo is not available; cannot configure system proxy." >&2
+        exit 1
+    fi
+
+    export IITD_PROXY_ELEVATED=1
+    # Prefer the system-installed path so sudoers.d matches exactly.
+    if [[ -x "${INSTALL_BIN}" ]]; then
+        exec sudo -E env IITD_PROXY_ELEVATED=1 "${INSTALL_BIN}" "$@"
+    fi
+    exec sudo -E env IITD_PROXY_ELEVATED=1 "${SELF}" "$@"
+fi
 
 if [[ -f "${INSTALL_LIB}/iitd-proxy.py" ]]; then
     PROXY_PY="${INSTALL_LIB}/iitd-proxy.py"

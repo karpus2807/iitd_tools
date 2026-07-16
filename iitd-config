@@ -31,6 +31,14 @@ source "${TOOL_ROOT}/lib/deps.sh"
 source "${TOOL_ROOT}/lib/install.sh"
 # shellcheck source=lib/tools_install.sh
 source "${TOOL_ROOT}/lib/tools_install.sh"
+# shellcheck source=lib/ssl_fix.sh
+source "${TOOL_ROOT}/lib/ssl_fix.sh"
+# shellcheck source=lib/backups.sh
+source "${TOOL_ROOT}/lib/backups.sh"
+# shellcheck source=lib/updater.sh
+source "${TOOL_ROOT}/lib/updater.sh"
+# shellcheck source=lib/snmp.sh
+source "${TOOL_ROOT}/lib/snmp.sh"
 # shellcheck source=lib/modules.sh
 source "${TOOL_ROOT}/lib/modules.sh"
 

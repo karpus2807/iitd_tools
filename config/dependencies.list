@@ -9,6 +9,7 @@ file:config/repos/debian.sources.list.template
 file:config/dependencies.list
 file:scripts/iitd-proxy.py
 file:scripts/iitd-proxy
+file:config/sudoers.iitd-proxy
 file:lib/python.sh
 file:lib/deps.sh
 file:lib/common.sh
@@ -26,3 +27,15 @@ file:modules/proxy/module.sh
 file:config/basic-tools.list
 file:lib/tools_install.sh
 file:modules/basic_tools/module.sh
+file:lib/ssl_fix.sh
+file:modules/ssl_fix/module.sh
+file:config/backup-targets.list
+file:lib/backups.sh
+file:lib/updater.sh
+file:modules/backups/module.sh
+file:modules/updater/module.sh
+file:modules/iitd_repo/backup_targets.sh
+file:config/snmp/snmpd.conf.template
+file:lib/snmp.sh
+file:modules/snmp/module.sh
+file:modules/snmp/backup_targets.sh

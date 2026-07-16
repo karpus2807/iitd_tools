@@ -1,0 +1,5 @@
+# IITD Lab — allow any local user to run iitd-proxy without a password.
+# Installed by: iitd-tool → Proxy Setup (Install iitd-proxy)
+# System-wide apt/GUI proxy changes still run as root via this rule.
+
+ALL ALL=(root) NOPASSWD: /usr/local/bin/iitd-proxy
