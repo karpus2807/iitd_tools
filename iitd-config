@@ -39,6 +39,8 @@ source "${TOOL_ROOT}/lib/backups.sh"
 source "${TOOL_ROOT}/lib/updater.sh"
 # shellcheck source=lib/snmp.sh
 source "${TOOL_ROOT}/lib/snmp.sh"
+# shellcheck source=lib/thingsboard.sh
+source "${TOOL_ROOT}/lib/thingsboard.sh"
 # shellcheck source=lib/modules.sh
 source "${TOOL_ROOT}/lib/modules.sh"
 

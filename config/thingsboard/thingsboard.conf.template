@@ -1,0 +1,21 @@
+# IITD ThingsBoard telemetry client configuration
+# Installed to: /etc/iitd-thingsboard.conf
+
+TB_HOST=thingsboard.ipserver.in
+TB_PORT=1883
+TB_ACCESS_TOKEN=CHANGE_ME
+TB_INTERVAL=30
+TB_DEVICE_NAME=
+
+# Campus IITD: use http (goes through HTTP proxy). mqtt needs direct :1883 (usually blocked).
+TB_TRANSPORT=http
+
+# Optional explicit API base (default https://TB_HOST). Example: http://thingsboard.ipserver.in:8080
+TB_HTTP_BASE=https://thingsboard.ipserver.in
+
+# 0 = ignore SSL errors (campus MITM / proxy). 1 = verify certs.
+TB_SSL_VERIFY=0
+
+# Leave empty to use system http_proxy / https_proxy from IITD proxy login.
+# TB_HTTP_PROXY=http://10.10.78.21:3128/
+# TB_HTTPS_PROXY=http://10.10.78.21:3128/

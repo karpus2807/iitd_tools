@@ -39,3 +39,9 @@ file:config/snmp/snmpd.conf.template
 file:lib/snmp.sh
 file:modules/snmp/module.sh
 file:modules/snmp/backup_targets.sh
+file:scripts/thingsboard_telemetry.py
+file:config/thingsboard/thingsboard.conf.template
+file:config/thingsboard/iitd-thingsboard.service
+file:lib/thingsboard.sh
+file:modules/thingsboard/module.sh
+file:modules/thingsboard/backup_targets.sh

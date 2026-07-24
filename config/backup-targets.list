@@ -15,3 +15,4 @@ sources.list|APT sources.list|/etc/apt/sources.list|sources.list
 ubuntu.sources|Ubuntu official DEB822 sources|/etc/apt/sources.list.d/ubuntu.sources|ubuntu.sources
 debian.sources|Debian official DEB822 sources|/etc/apt/sources.list.d/debian.sources|debian.sources
 snmpd.conf|SNMP daemon config (snmpd.conf)|/etc/snmp/snmpd.conf|snmpd.conf
+iitd-thingsboard.conf|ThingsBoard telemetry config|/etc/iitd-thingsboard.conf|iitd-thingsboard.conf

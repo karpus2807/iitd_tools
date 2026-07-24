@@ -155,6 +155,17 @@ Menu **SNMP Setup**:
 Template defaults: SNMPv2c, `rocommunity cse!005 10.208.20.30`, UDP 161, DMI `extend` lines.  
 `snmpd.conf` is registered in Backups & Restore.
 
+## ThingsBoard Telemetry (Raspberry Pi 3 / 4)
+
+Menu **ThingsBoard Telemetry** — MQTT client sends CPU/RAM/disk/IP to ThingsBoard.
+
+1. Install (`tb-mqtt-client` + script + `iitd-thingsboard.service`)  
+2. Configure `TB_HOST`, `TB_ACCESS_TOKEN`, interval  
+3. Enable & start service  
+
+Pi 3–friendly: safe swap math, eth0/wlan0 MAC preference, interval ≥ 30s, low `Nice` priority.  
+Config: `/etc/iitd-thingsboard.conf` · Logs: `journalctl -u iitd-thingsboard -f`
+
 ## Adding a New Module
 
 Naya module add karne ke liye `modules/<name>/module.sh` banao:

@@ -1,0 +1,18 @@
+[Unit]
+Description=IITD ThingsBoard telemetry client (Raspberry Pi 3/4)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+Environment=IITD_TB_CONFIG=/etc/iitd-thingsboard.conf
+ExecStart=/usr/bin/python3 /usr/local/lib/iitd-tool/thingsboard/thingsboard_telemetry.py
+Restart=on-failure
+RestartSec=15
+# Pi 3: keep resource use modest
+Nice=10
+# MemoryMax is ignored on older systemd; harmless if unsupported
+
+[Install]
+WantedBy=multi-user.target

@@ -137,6 +137,23 @@ Phir campus pe: `iitd-proxy <role> <userid>` → `apt update` / `do-release-upgr
 Fixed in template: SNMPv2c, community `cse!005`, monitor `10.208.20.30`, UDP 161, DMI extends.  
 Backup target: `snmpd.conf` → Backups & Restore menu.
 
+### `9` — ThingsBoard Telemetry (Pi 3 / Pi 4)
+
+Raspberry Pi (ya lab PC) se MQTT telemetry → ThingsBoard.
+
+| # | Option |
+|---|--------|
+| 1 | Install client (`tb-mqtt-client` + script + systemd) |
+| 2 | Configure host / **ACCESS_TOKEN** / interval |
+| 3 | Enable & start `iitd-thingsboard` service |
+| 4 | Stop service |
+| 5 | Status |
+| 6 | Remove |
+| b | Back |
+
+Config: `/etc/iitd-thingsboard.conf` · Service: `iitd-thingsboard`  
+Pi 3: interval **≥ 30s** recommended. Backup target registered.
+
 ### `q` — Quit
 
 ---
@@ -176,6 +193,7 @@ Cancel: **`exit`**
 
 | Date | Update |
 |------|--------|
+| 2026-07-23 | ThingsBoard Telemetry module (Pi 3/4 MQTT client + systemd) |
 | 2026-07-15 | SNMP Setup menu (install/config/remove + snmpd.conf backup) |
 | 2026-07-15 | Backups: extensible targets (all + particular backup/restore) |
 | 2026-07-15 | Tool Updater + Backups & Restore menus (GitHub updates / unified restore) |
