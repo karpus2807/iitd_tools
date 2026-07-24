@@ -148,7 +148,7 @@ show_usage() {
     echo "  iitd-proxy logout"
     echo
     echo "Admin installs once (menu → Proxy Setup). After that any user can login/logout."
-    echo "Proxy applies to: apt, snap, GNOME GUI, wget, curl, Chrome, Chromium, Firefox"
+    echo "Proxy applies to: apt, snap, git/GitHub, GNOME GUI, wget, curl, Chrome, Chromium, Firefox"
     echo "HTTPS login uses system CAs first; TLS verify-off fallback if needed (no custom cert)."
 }
 

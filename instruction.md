@@ -103,6 +103,8 @@ Backend root ke liye `/etc/sudoers.d/iitd-proxy` (NOPASSWD) lagta hai — user k
 
 **TLS:** koi custom certificate nahi — pehle system CA, fail ho to verify-off fallback.
 
+**Proxy covers:** apt, snap, **git/GitHub** (github.com, api, codeload, raw, ghcr, …), GNOME, wget/curl, Chrome/Chromium/Firefox.
+
 ### `6` — Basic Tools Installer
 
 Checkbox list se tools chun kar install karo:
@@ -193,6 +195,7 @@ Cancel: **`exit`**
 
 | Date | Update |
 |------|--------|
+| 2026-07-24 | iitd-proxy: Git/GitHub system proxy (with snap) for clone/API/assets |
 | 2026-07-23 | ThingsBoard Telemetry module (Pi 3/4 MQTT client + systemd) |
 | 2026-07-15 | SNMP Setup menu (install/config/remove + snmpd.conf backup) |
 | 2026-07-15 | Backups: extensible targets (all + particular backup/restore) |

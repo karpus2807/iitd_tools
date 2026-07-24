@@ -528,6 +528,96 @@ def configure_snap(prefix):
     return "OK"
 
 
+# GitHub-related hosts — explicit git proxy entries so clone/API/assets work on campus.
+GITHUB_PROXY_HOSTS = (
+    "github.com",
+    "api.github.com",
+    "codeload.github.com",
+    "raw.githubusercontent.com",
+    "objects.githubusercontent.com",
+    "gist.github.com",
+    "ghcr.io",
+    "npm.pkg.github.com",
+)
+
+
+def _git_proxy_keys():
+    keys = ["http.proxy", "https.proxy"]
+    for host in GITHUB_PROXY_HOSTS:
+        keys.append("http.https://{0}/.proxy".format(host))
+    return keys
+
+
+def configure_git(prefix):
+    """Configure git so GitHub (and related hosts) work through the IITD HTTP proxy."""
+    if not shutil.which("git"):
+        log("Git: not installed, skipping.")
+        return "SKIPPED"
+
+    url = proxy_url(prefix)
+    system_git = ["git", "config", "--system"]
+    failed = False
+
+    for key in _git_proxy_keys():
+        result = run_cmd(system_git + ["--replace-all", key, url], check=False, timeout=15)
+        if result.returncode != 0:
+            failed = True
+
+    # Force HTTPS for GitHub so traffic can use the HTTP CONNECT proxy
+    # (git:// and SSH often fail or are blocked on campus).
+    run_cmd(system_git + ["--unset-all", "url.https://github.com/.insteadOf"], check=False, timeout=10)
+    for instead in ("git://github.com/", "git@github.com:"):
+        result = run_cmd(
+            system_git + ["--add", "url.https://github.com/.insteadOf", instead],
+            check=False,
+            timeout=15,
+        )
+        if result.returncode != 0:
+            failed = True
+
+    user_info = target_user_record()
+    if user_info:
+        user_git = ["sudo", "-u", user_info.pw_name, "git", "config", "--global"]
+        for key in _git_proxy_keys():
+            run_cmd(user_git + ["--replace-all", key, url], check=False, timeout=15)
+        run_cmd(user_git + ["--unset-all", "url.https://github.com/.insteadOf"], check=False, timeout=10)
+        for instead in ("git://github.com/", "git@github.com:"):
+            run_cmd(
+                user_git + ["--add", "url.https://github.com/.insteadOf", instead],
+                check=False,
+                timeout=15,
+            )
+
+    if shutil.which("gh"):
+        log("GitHub CLI (gh): uses http(s)_proxy from environment / profile.")
+
+    if failed:
+        log("Git/GitHub proxy could not be fully configured.")
+        return "CHECK"
+
+    log("Git/GitHub proxy configured (system-wide + GitHub hosts).")
+    return "OK"
+
+
+def remove_git_proxy():
+    if not shutil.which("git"):
+        return "SKIPPED"
+
+    keys = _git_proxy_keys() + ["url.https://github.com/.insteadOf"]
+    system_git = ["git", "config", "--system"]
+    for key in keys:
+        run_cmd(system_git + ["--unset-all", key], check=False, timeout=15)
+
+    user_info = target_user_record()
+    if user_info:
+        user_git = ["sudo", "-u", user_info.pw_name, "git", "config", "--global"]
+        for key in keys:
+            run_cmd(user_git + ["--unset-all", key], check=False, timeout=15)
+
+    log("Git/GitHub proxy removed.")
+    return "OK"
+
+
 def desktop_user_env(user_info, extra=None):
     runtime_dir = "/run/user/{0}".format(user_info.pw_uid)
     env = {
@@ -918,6 +1008,7 @@ def enable_proxy(role, userid, password):
     configure_systemd(prefix)
 
     snap_status = configure_snap(prefix)
+    git_status = configure_git(prefix)
     gnome_status = configure_gsettings(prefix)
     browser_status = configure_browser_policies(prefix)
     user_status = configure_user_tools(prefix)
@@ -929,6 +1020,7 @@ def enable_proxy(role, userid, password):
     log("-------------------")
     log("APT:       OK")
     log("Snap:      {0}".format(snap_status))
+    log("GitHub:    {0}".format(git_status))
     log("GUI:       {0}".format(gnome_status))
     log("Browsers:  {0}".format(browser_status))
     log("wget/curl: {0}".format(user_status))
@@ -946,6 +1038,7 @@ def logout_proxy():
     remove_environment_entries()
 
     snap_status = remove_snap_proxy()
+    git_status = remove_git_proxy()
     gnome_status = remove_gsettings_proxy()
     browser_status = remove_browser_policies()
     user_status = remove_user_tools()
@@ -960,6 +1053,7 @@ def logout_proxy():
     log("Proxy logout summary")
     log("--------------------")
     log("Snap:      {0}".format(snap_status))
+    log("GitHub:    {0}".format(git_status))
     log("GUI:       {0}".format(gnome_status))
     log("Browsers:  {0}".format(browser_status))
     log("User tools:{0}".format(user_status))

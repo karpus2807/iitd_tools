@@ -305,6 +305,7 @@ Pure system se proxy remove ho jayegi.
 |-----------|--------|
 | APT / apt store | `/etc/apt/apt.conf.d/95iitd-proxy` |
 | Snap Store | `snap set system proxy.*` |
+| Git / GitHub | `git config --system http(s).proxy` + host-specific GitHub proxies |
 | Ubuntu GUI (GNOME) | `gsettings` system proxy |
 | wget | `~/.wgetrc` |
 | curl | `~/.curlrc` |
