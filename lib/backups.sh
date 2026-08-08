@@ -208,7 +208,7 @@ backups_restore_one() {
 
     mkdir -p "$(dirname "${path}")"
     cp -a "${src}" "${path}"
-    chmod 644 "${path}" 2>/dev/null || true
+    # Preserve mode from backup (cp -a); do not force 644
     log_success "Restored: ${name} ← $(basename "${src}")"
     return 0
 }

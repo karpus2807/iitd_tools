@@ -90,20 +90,19 @@ Extend: line add in `config/backup-targets.list` **ya** `modules/<name>/backup_t
 
 ### `5` — Proxy Setup (Install iitd-proxy)
 
-Admin **ek baar** install kare (`sudo iitd-tool` → Proxy Setup).  
-Uske baad **kisi bhi user** se (bina sudo password):
+Admin **ek baar** CLI install kare (`sudo iitd-tool` → Proxy Setup).
 
 ```bash
-iitd-proxy <role> <userid>    # login / enable
-iitd-proxy logout             # logout
-iitd-proxy shell              # interactive
+iitd-proxy <role> <userid>    # any user, no root — login + user-session
+iitd-proxy logout
+iitd-proxy shell
 ```
 
-Backend root ke liye `/etc/sudoers.d/iitd-proxy` (NOPASSWD) lagta hai — user ko `sudo` type nahi karna padta.
+**System-wide** apt/snap/browsers: `sudo iitd-tool` startup pe **staff** userid + password (no sudoers / NOPASSWD).
 
-**TLS:** koi custom certificate nahi — pehle system CA, fail ho to verify-off fallback.
+**TLS:** verified by default. Prefer SSL → Install Certificate (`ca-chain`). Optional: `IITD_PROXY_INSECURE_TLS=1`.
 
-**Proxy covers:** apt, snap, **git/GitHub** (github.com, api, codeload, raw, ghcr, …), GNOME, wget/curl, Chrome/Chromium/Firefox.
+**Proxy covers (system-wide):** apt, snap, git/GitHub, GNOME, wget/curl, Chrome/Chromium/Firefox.
 
 ### `6` — Basic Tools Installer
 
@@ -115,16 +114,15 @@ Checkbox list se tools chun kar install karo:
 **Tools list:** wget, curl, tmux, ssh, ssh server, ifconfig (net-tools), git, vim, htop, rsync, build-essential, ...  
 → `config/basic-tools.list`
 
-### `7` — SSL Fix
+### `7` — SSL / Certificates
 
-Certificate / TLS issues theek karo (Ubuntu 18 upgrade pe common):
+Submenu:
 
-1. Custom IITD/CCIITD CA files hatao  
-2. `ca-certificates` reinstall  
-3. `update-ca-certificates --fresh`  
-4. Time check + HTTPS test  
-
-Phir campus pe: `iitd-proxy <role> <userid>` → `apt update` / `do-release-upgrade`
+1. **Install Certificate** — `config/certs/ca-chain.crt` (GlobalSign) system pe install
+2. **Update Certificate** — ca-chain refresh
+3. **Remove Certificate** — IITD ca-chain (optional: sab local custom CAs) + official sync
+4. **Certificate Status**
+5. **SSL Fix** — CCIITD leftovers hatao, `ca-certificates` reinstall, trust refresh, ca-chain re-apply
 
 ### `8` — SNMP Setup
 
@@ -139,33 +137,17 @@ Phir campus pe: `iitd-proxy <role> <userid>` → `apt update` / `do-release-upgr
 Fixed in template: SNMPv2c, community `cse!005`, monitor `10.208.20.30`, UDP 161, DMI extends.  
 Backup target: `snmpd.conf` → Backups & Restore menu.
 
-### `9` — ThingsBoard Telemetry (Pi 3 / Pi 4)
-
-Raspberry Pi (ya lab PC) se MQTT telemetry → ThingsBoard.
-
-| # | Option |
-|---|--------|
-| 1 | Install client (`tb-mqtt-client` + script + systemd) |
-| 2 | Configure host / **ACCESS_TOKEN** / interval |
-| 3 | Enable & start `iitd-thingsboard` service |
-| 4 | Stop service |
-| 5 | Status |
-| 6 | Remove |
-| b | Back |
-
-Config: `/etc/iitd-thingsboard.conf` · Service: `iitd-thingsboard`  
-Pi 3: interval **≥ 30s** recommended. Backup target registered.
-
 ### `q` — Quit
 
 ---
 
-## Proxy commands (menu 3 ke baad)
+## Proxy commands
 
 ```bash
-iitd-proxy <role> <userid>    # proxy ON  (no sudo)
-iitd-proxy logout             # proxy OFF
-iitd-proxy shell              # interactive (exit to quit)
+sudo iitd-tool                 # staff login → system-wide proxy
+iitd-proxy <role> <userid>     # any user, no root
+iitd-proxy logout
+iitd-proxy shell
 ```
 
 **Roles:** `btech` · `mtech` · `phd` · `staff` · `faculty` · `visitor`
@@ -198,6 +180,8 @@ Cancel: **`exit`**
 | 2026-07-24 | iitd-proxy: Git/GitHub system proxy (with snap) for clone/API/assets |
 | 2026-07-23 | ThingsBoard Telemetry module (Pi 3/4 MQTT client + systemd) |
 | 2026-07-15 | SNMP Setup menu (install/config/remove + snmpd.conf backup) |
+| 2026-08-08 | Remove ThingsBoard; proxy without sudoers; staff login at iitd-tool start; ca-chain SSL menu; atomic updater |
+| 2026-08-08 | SSL menu: Install/Update `ca-chain.crt` (GlobalSign) into system trust |
 | 2026-07-15 | Backups: extensible targets (all + particular backup/restore) |
 | 2026-07-15 | Tool Updater + Backups & Restore menus (GitHub updates / unified restore) |
 | 2026-07-15 | iitd-proxy: any user login/logout without typing sudo (sudoers) |

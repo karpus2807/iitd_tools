@@ -8,7 +8,8 @@ deb http://repo.iitd.ernet.in/ubuntu <release> main restricted universe multiver
 deb http://repo.iitd.ernet.in/ubuntu <release>-updates main restricted universe multiverse
 deb http://repo.iitd.ernet.in/ubuntu <release>-security main restricted universe multiverse
 deb http://repo.iitd.ernet.in/ubuntu <release>-backports main restricted universe multiverse
-deb http://repo.iitd.ernet.in/ubuntu <release>-proposed main restricted universe multiverse
+# Proposed pocket disabled by default (lab stability). Uncomment only if needed:
+# deb http://repo.iitd.ernet.in/ubuntu <release>-proposed main restricted universe multiverse
 
 # Sources
 # =======
@@ -16,4 +17,4 @@ deb-src http://repo.iitd.ernet.in/ubuntu <release> main restricted universe mult
 deb-src http://repo.iitd.ernet.in/ubuntu <release>-updates main restricted universe multiverse
 deb-src http://repo.iitd.ernet.in/ubuntu <release>-security main restricted universe multiverse
 deb-src http://repo.iitd.ernet.in/ubuntu <release>-backports main restricted universe multiverse
-deb-src http://repo.iitd.ernet.in/ubuntu <release>-proposed main restricted universe multiverse
+# deb-src http://repo.iitd.ernet.in/ubuntu <release>-proposed main restricted universe multiverse

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# SSL Fix module — repair CA trust / certificate verify failures
+# SSL / Certificates module — install ca-chain + repair CA trust
 
 MODULE_ID="ssl_fix"
-MODULE_NAME="SSL Fix"
-MODULE_DESCRIPTION="Remove broken custom CAs, reinstall ca-certificates, refresh trust store"
+MODULE_NAME="SSL / Certificates"
+MODULE_DESCRIPTION="Install/update IITD ca-chain, repair CA trust / certificate verify failures"
 MODULE_ORDER=40
 
 module_supported_versions() {
@@ -11,6 +11,5 @@ module_supported_versions() {
 }
 
 module_run() {
-    echo
-    run_ssl_fix || true
+    run_ssl_menu || true
 }

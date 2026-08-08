@@ -151,6 +151,7 @@ updater_print_do_not_cancel() {
 }
 
 updater_clean_tool_install() {
+    # Kept for compatibility; prefer atomic staging in updater_install_from_ref.
     init_iitd_data_dirs
 
     if [[ -d "${IITD_ETC_INSTALL}" ]]; then
@@ -170,6 +171,7 @@ updater_install_from_ref() {
     local ref="$1"
     local label="${2:-${ref}}"
     local tmp archive extract_dir src_dir
+    local staging old_dir
 
     require_root
 
@@ -185,13 +187,15 @@ updater_install_from_ref() {
 
     tmp="$(mktemp -d /tmp/iitd-tool-upd.XXXXXX)"
     archive="${tmp}/src.tar.gz"
+    staging="${IITD_ETC_INSTALL}.new"
+    old_dir="${IITD_ETC_INSTALL}.old"
     # shellcheck disable=SC2064
-    trap "rm -rf '${tmp}'" RETURN
+    trap "rm -rf '${tmp}' '${staging}'" RETURN
 
     local url="https://github.com/${IITD_GITHUB_REPO}/archive/${ref}.tar.gz"
     if ! updater_http_download "${url}" "${archive}"; then
         log_error "Download failed: ${url}"
-        log_info "If on campus, enable proxy first: iitd-proxy <role> <userid>"
+        log_info "If on campus, run: sudo iitd-tool  (staff proxy login)"
         return 1
     fi
 
@@ -208,14 +212,44 @@ updater_install_from_ref() {
         return 1
     fi
 
-    updater_clean_tool_install
+    init_iitd_data_dirs
+    rm -rf "${staging}" "${old_dir}"
+    mkdir -p "${staging}"
 
-    log_info "Installing new tool files..."
-    _install_copy_tree "${src_dir}" "${IITD_ETC_INSTALL}"
+    log_info "Staging new tool files at ${staging} ..."
+    _install_copy_tree "${src_dir}" "${staging}"
 
-    chmod +x "${IITD_ETC_INSTALL}/iitd-config" "${IITD_ETC_INSTALL}/iitd-tool" 2>/dev/null || true
-    chmod +x "${IITD_ETC_INSTALL}/scripts/iitd-proxy" 2>/dev/null || true
-    chmod +x "${IITD_ETC_INSTALL}/install-iitd-tool.sh" 2>/dev/null || true
+    if [[ ! -f "${staging}/iitd-config" || ! -f "${staging}/iitd-tool" ]]; then
+        log_error "Staged tree incomplete — aborting (live install untouched)."
+        rm -rf "${staging}"
+        return 1
+    fi
+
+    if ! bash -n "${staging}/iitd-config" 2>/dev/null; then
+        log_error "Staged iitd-config failed syntax check — aborting."
+        rm -rf "${staging}"
+        return 1
+    fi
+
+    chmod +x "${staging}/iitd-config" "${staging}/iitd-tool" 2>/dev/null || true
+    chmod +x "${staging}/scripts/iitd-proxy" 2>/dev/null || true
+    chmod +x "${staging}/install-iitd-tool.sh" 2>/dev/null || true
+
+    log_info "Atomically swapping into ${IITD_ETC_INSTALL} ..."
+    if [[ -d "${IITD_ETC_INSTALL}" ]]; then
+        mv "${IITD_ETC_INSTALL}" "${old_dir}"
+    fi
+    if ! mv "${staging}" "${IITD_ETC_INSTALL}"; then
+        log_error "Failed to activate staged install — restoring previous tree if present."
+        if [[ -d "${old_dir}" ]]; then
+            mv "${old_dir}" "${IITD_ETC_INSTALL}"
+        fi
+        return 1
+    fi
+    rm -rf "${old_dir}"
+
+    find "${IITD_VAR_LIB}" -type d -name '__pycache__' -prune -exec rm -rf {} + 2>/dev/null || true
+    find "${IITD_VAR_LIB}" -type f -name '*.pyc' -delete 2>/dev/null || true
 
     ln -sf "${IITD_ETC_INSTALL}/iitd-tool" "${IITD_BIN_LINK}"
     ln -sf "${IITD_ETC_INSTALL}/iitd-config" "${IITD_CONFIG_LINK}"

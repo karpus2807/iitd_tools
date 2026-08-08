@@ -198,9 +198,23 @@ def run_cmd(cmd, check=True, timeout=None, env=None):
 def require_root():
     if os.geteuid() != 0:
         raise ProxyError(
-            "Root required. After Proxy Setup install, run: iitd-proxy <role> <userid> "
-            "(no sudo). Or ask an admin to reinstall iitd-proxy."
+            "Root required for system-wide proxy changes. "
+            "Run: sudo iitd-tool (staff login at startup), "
+            "or use iitd-proxy as a normal user for user-session proxy only."
         )
+
+
+def is_root():
+    return os.geteuid() == 0
+
+
+def insecure_tls_allowed():
+    return os.environ.get("IITD_PROXY_INSECURE_TLS", "").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
 
 
 def proxy_host(prefix):
@@ -234,14 +248,48 @@ def proxy_env(prefix):
 
 
 def target_user_record():
+    """Desktop/login user for per-user config (sudo invoker, or current non-root user)."""
     user = os.environ.get("SUDO_USER")
-    if not user or user == "root":
-        return None
-    try:
-        return pwd.getpwnam(user)
-    except KeyError:
-        return None
+    if user and user != "root":
+        try:
+            return pwd.getpwnam(user)
+        except KeyError:
+            pass
+    if not is_root():
+        try:
+            return pwd.getpwuid(os.getuid())
+        except KeyError:
+            return None
+    return None
 
+
+def user_run_prefix(user_info, env=None):
+    """Build command prefix to run as target user. Empty when already that user."""
+    if env is None:
+        env = desktop_user_env(user_info)
+    if is_root():
+        return [
+            "sudo",
+            "-u",
+            user_info.pw_name,
+            "env",
+            "DISPLAY={0}".format(env["DISPLAY"]),
+            "DBUS_SESSION_BUS_ADDRESS={0}".format(env["DBUS_SESSION_BUS_ADDRESS"]),
+            "XDG_RUNTIME_DIR={0}".format(env["XDG_RUNTIME_DIR"]),
+        ]
+    return [
+        "env",
+        "DISPLAY={0}".format(env.get("DISPLAY", os.environ.get("DISPLAY", ":0"))),
+        "DBUS_SESSION_BUS_ADDRESS={0}".format(
+            env.get(
+                "DBUS_SESSION_BUS_ADDRESS",
+                os.environ.get("DBUS_SESSION_BUS_ADDRESS", ""),
+            )
+        ),
+        "XDG_RUNTIME_DIR={0}".format(
+            env.get("XDG_RUNTIME_DIR", os.environ.get("XDG_RUNTIME_DIR", ""))
+        ),
+    ]
 
 def managed_block(content):
     return (
@@ -385,25 +433,39 @@ def remove_legacy_iitd_ca_files():
         run_cmd(["update-ca-certificates"], check=False, timeout=60)
 
 
-def urlopen_with_tls_fallback(url, data=None, timeout=20):
-    """Try HTTPS with verification first; fall back without verification on TLS errors."""
+def urlopen_https(url, data=None, timeout=20):
+    """HTTPS with certificate verification. Optional insecure fallback only if env set."""
     opener = direct_https_opener(verify_tls=True)
-
     try:
         return urlopen_text(opener, url, data=data, timeout=timeout)
     except Exception as exc:
         if not is_certificate_error(exc):
             raise
-        log("TLS verification failed; retrying without certificate verification.")
+        if not insecure_tls_allowed():
+            raise ProxyError(
+                "TLS certificate verification failed: {0}. "
+                "Install IITD ca-chain via: sudo iitd-tool → SSL / Certificates → Install Certificate. "
+                "Or set IITD_PROXY_INSECURE_TLS=1 to allow insecure login (not recommended).".format(
+                    exc
+                )
+            )
+        log("TLS verification failed; IITD_PROXY_INSECURE_TLS=1 — retrying without verification.")
         opener = direct_https_opener(verify_tls=False)
         return urlopen_text(opener, url, data=data, timeout=timeout)
+
+
+def urlopen_with_tls_fallback(url, data=None, timeout=20):
+    """Back-compat alias — prefer verified TLS; insecure only with IITD_PROXY_INSECURE_TLS=1."""
+    return urlopen_https(url, data=data, timeout=timeout)
 
 
 def login(role, prefix, user, password):
     base = get_login_url(role, prefix)
 
     try:
-        html = urlopen_with_tls_fallback(base)
+        html = urlopen_https(base)
+    except ProxyError:
+        raise
     except Exception as exc:
         raise ProxyError("Could not reach IITD proxy login page: {0}".format(exc))
 
@@ -425,7 +487,9 @@ def login(role, prefix, user, password):
         encoded = urllib_parse.urlencode(form)
 
     try:
-        response = urlopen_with_tls_fallback(base, data=encoded)
+        response = urlopen_https(base, data=encoded)
+    except ProxyError:
+        raise
     except Exception as exc:
         raise ProxyError("IITD proxy login request failed: {0}".format(exc))
 
@@ -548,36 +612,38 @@ def _git_proxy_keys():
     return keys
 
 
-def configure_git(prefix):
+def configure_git(prefix, system_wide=True):
     """Configure git so GitHub (and related hosts) work through the IITD HTTP proxy."""
     if not shutil.which("git"):
         log("Git: not installed, skipping.")
         return "SKIPPED"
 
     url = proxy_url(prefix)
-    system_git = ["git", "config", "--system"]
     failed = False
 
-    for key in _git_proxy_keys():
-        result = run_cmd(system_git + ["--replace-all", key, url], check=False, timeout=15)
-        if result.returncode != 0:
-            failed = True
+    if system_wide and is_root():
+        system_git = ["git", "config", "--system"]
+        for key in _git_proxy_keys():
+            result = run_cmd(system_git + ["--replace-all", key, url], check=False, timeout=15)
+            if result.returncode != 0:
+                failed = True
 
-    # Force HTTPS for GitHub so traffic can use the HTTP CONNECT proxy
-    # (git:// and SSH often fail or are blocked on campus).
-    run_cmd(system_git + ["--unset-all", "url.https://github.com/.insteadOf"], check=False, timeout=10)
-    for instead in ("git://github.com/", "git@github.com:"):
-        result = run_cmd(
-            system_git + ["--add", "url.https://github.com/.insteadOf", instead],
-            check=False,
-            timeout=15,
-        )
-        if result.returncode != 0:
-            failed = True
+        run_cmd(system_git + ["--unset-all", "url.https://github.com/.insteadOf"], check=False, timeout=10)
+        for instead in ("git://github.com/", "git@github.com:"):
+            result = run_cmd(
+                system_git + ["--add", "url.https://github.com/.insteadOf", instead],
+                check=False,
+                timeout=15,
+            )
+            if result.returncode != 0:
+                failed = True
 
     user_info = target_user_record()
     if user_info:
-        user_git = ["sudo", "-u", user_info.pw_name, "git", "config", "--global"]
+        if is_root():
+            user_git = ["sudo", "-u", user_info.pw_name, "git", "config", "--global"]
+        else:
+            user_git = ["git", "config", "--global"]
         for key in _git_proxy_keys():
             run_cmd(user_git + ["--replace-all", key, url], check=False, timeout=15)
         run_cmd(user_git + ["--unset-all", "url.https://github.com/.insteadOf"], check=False, timeout=10)
@@ -595,22 +661,29 @@ def configure_git(prefix):
         log("Git/GitHub proxy could not be fully configured.")
         return "CHECK"
 
-    log("Git/GitHub proxy configured (system-wide + GitHub hosts).")
+    if system_wide and is_root():
+        log("Git/GitHub proxy configured (system-wide + GitHub hosts).")
+    else:
+        log("Git/GitHub proxy configured for current user (--global).")
     return "OK"
 
 
-def remove_git_proxy():
+def remove_git_proxy(system_wide=True):
     if not shutil.which("git"):
         return "SKIPPED"
 
     keys = _git_proxy_keys() + ["url.https://github.com/.insteadOf"]
-    system_git = ["git", "config", "--system"]
-    for key in keys:
-        run_cmd(system_git + ["--unset-all", key], check=False, timeout=15)
+    if system_wide and is_root():
+        system_git = ["git", "config", "--system"]
+        for key in keys:
+            run_cmd(system_git + ["--unset-all", key], check=False, timeout=15)
 
     user_info = target_user_record()
     if user_info:
-        user_git = ["sudo", "-u", user_info.pw_name, "git", "config", "--global"]
+        if is_root():
+            user_git = ["sudo", "-u", user_info.pw_name, "git", "config", "--global"]
+        else:
+            user_git = ["git", "config", "--global"]
         for key in keys:
             run_cmd(user_git + ["--unset-all", key], check=False, timeout=15)
 
@@ -631,15 +704,7 @@ def desktop_user_env(user_info, extra=None):
 
 
 def gsettings_base(user_info, env):
-    return [
-        "sudo",
-        "-u",
-        user_info.pw_name,
-        "env",
-        "DISPLAY={0}".format(env["DISPLAY"]),
-        "DBUS_SESSION_BUS_ADDRESS={0}".format(env["DBUS_SESSION_BUS_ADDRESS"]),
-        "XDG_RUNTIME_DIR={0}".format(env["XDG_RUNTIME_DIR"]),
-    ]
+    return user_run_prefix(user_info, env) + []
 
 
 def configure_gsettings(prefix):
@@ -649,7 +714,7 @@ def configure_gsettings(prefix):
 
     user_info = target_user_record()
     if not user_info:
-        log("gsettings: no desktop user detected (use sudo from a logged-in user).")
+        log("gsettings: no desktop user detected.")
         return "SKIPPED"
 
     runtime_dir = "/run/user/{0}".format(user_info.pw_uid)
@@ -851,12 +916,9 @@ def configure_user_tools(prefix):
             "HTTP_PROXY", "HTTPS_PROXY", "FTP_PROXY",
             "no_proxy", "NO_PROXY",
         ]
-        user_env_command = [
-            "sudo", "-u", user_info.pw_name, "env",
-            "DISPLAY={0}".format(runtime_env["DISPLAY"]),
-            "DBUS_SESSION_BUS_ADDRESS={0}".format(runtime_env["DBUS_SESSION_BUS_ADDRESS"]),
-            "XDG_RUNTIME_DIR={0}".format(runtime_env["XDG_RUNTIME_DIR"]),
-        ] + ["{0}={1}".format(key, runtime_env[key]) for key in keys]
+        user_env_command = user_run_prefix(user_info, runtime_env) + [
+            "{0}={1}".format(key, runtime_env[key]) for key in keys
+        ]
 
         run_cmd(user_env_command + ["systemctl", "--user", "import-environment"] + keys, check=False, timeout=15)
         if shutil.which("dbus-update-activation-environment"):
@@ -990,64 +1052,80 @@ def remove_user_tools():
 
 
 def enable_proxy(role, userid, password):
-    require_root()
     prefix = PREFIX_MAP[role]
+    system_wide = is_root()
 
-    remove_legacy_iitd_ca_files()
+    if system_wide:
+        remove_legacy_iitd_ca_files()
 
     log("Python runtime: {0}.{1}".format(sys.version_info[0], sys.version_info[1]))
     log("IITD role: {0}".format(role))
     log("IITD userid: {0}".format(userid))
     log("Proxy endpoint: {0}".format(proxy_url(prefix)))
+    log("Mode: {0}".format("system-wide (root)" if system_wide else "user-session (no root)"))
 
     log("Logging in to IITD proxy...")
     login(role, prefix, userid, password)
 
-    configure_apt(prefix)
-    configure_environment(prefix)
-    configure_systemd(prefix)
+    snap_status = "SKIPPED"
+    browser_status = "SKIPPED"
+    apt_status = "SKIPPED"
 
-    snap_status = configure_snap(prefix)
-    git_status = configure_git(prefix)
-    gnome_status = configure_gsettings(prefix)
-    browser_status = configure_browser_policies(prefix)
-    user_status = configure_user_tools(prefix)
-
-    save_state(role, userid, prefix)
+    if system_wide:
+        configure_apt(prefix)
+        configure_environment(prefix)
+        configure_systemd(prefix)
+        apt_status = "OK"
+        snap_status = configure_snap(prefix)
+        browser_status = configure_browser_policies(prefix)
+        git_status = configure_git(prefix, system_wide=True)
+        gnome_status = configure_gsettings(prefix)
+        user_status = configure_user_tools(prefix)
+        save_state(role, userid, prefix)
+    else:
+        git_status = configure_git(prefix, system_wide=False)
+        gnome_status = configure_gsettings(prefix)
+        user_status = configure_user_tools(prefix)
 
     log("")
     log("Proxy setup summary")
     log("-------------------")
-    log("APT:       OK")
+    log("APT:       {0}".format(apt_status))
     log("Snap:      {0}".format(snap_status))
     log("GitHub:    {0}".format(git_status))
     log("GUI:       {0}".format(gnome_status))
     log("Browsers:  {0}".format(browser_status))
     log("wget/curl: {0}".format(user_status))
     log("")
-    log("Proxy enabled system-wide. Restart browsers if they were already open.")
+    if system_wide:
+        log("Proxy enabled system-wide. Restart browsers if they were already open.")
+    else:
+        log("User-session proxy enabled (login OK).")
+        log("System-wide apt/snap/browser policies: run sudo iitd-tool (staff login).")
 
 
 def logout_proxy():
-    require_root()
+    system_wide = is_root()
 
-    remove_path(APT_PROXY_FILE)
-    remove_path(PROFILE_FILE)
-    remove_path(SYSTEMD_PROXY_FILE)
-    remove_path(SYSTEMD_USER_PROXY_FILE)
-    remove_environment_entries()
+    snap_status = "SKIPPED"
+    browser_status = "SKIPPED"
 
-    snap_status = remove_snap_proxy()
-    git_status = remove_git_proxy()
+    if system_wide:
+        remove_path(APT_PROXY_FILE)
+        remove_path(PROFILE_FILE)
+        remove_path(SYSTEMD_PROXY_FILE)
+        remove_path(SYSTEMD_USER_PROXY_FILE)
+        remove_environment_entries()
+        snap_status = remove_snap_proxy()
+        browser_status = remove_browser_policies()
+        if shutil.which("systemctl"):
+            run_cmd(["systemctl", "daemon-reexec"], check=False, timeout=15)
+        if path_exists(STATE_FILE):
+            remove_path(STATE_FILE)
+
+    git_status = remove_git_proxy(system_wide=system_wide)
     gnome_status = remove_gsettings_proxy()
-    browser_status = remove_browser_policies()
     user_status = remove_user_tools()
-
-    if shutil.which("systemctl"):
-        run_cmd(["systemctl", "daemon-reexec"], check=False, timeout=15)
-
-    if path_exists(STATE_FILE):
-        remove_path(STATE_FILE)
 
     log("")
     log("Proxy logout summary")
@@ -1058,33 +1136,44 @@ def logout_proxy():
     log("Browsers:  {0}".format(browser_status))
     log("User tools:{0}".format(user_status))
     log("")
-    log("Proxy removed from system.")
+    if system_wide:
+        log("Proxy removed from system.")
+    else:
+        log("User-session proxy cleared.")
+        log("System-wide apt/snap (if any) still needs: sudo iitd-proxy logout")
 
 
-def interactive_shell():
-    require_root()
-
+def interactive_shell(default_role=None):
     print("")
     print("=== IITD Proxy Shell ===")
-    print("Login to enable IITD proxy on this system.")
-    print("Roles: {0}".format(", ".join(sorted(PREFIX_MAP))))
-    print("Type 'exit' at Role/Userid prompt to quit without login.")
+    if default_role:
+        print("Staff campus proxy login.")
+        print("Role fixed to: {0}".format(default_role))
+    else:
+        print("Login to enable IITD proxy.")
+        print("Roles: {0}".format(", ".join(sorted(PREFIX_MAP))))
+    print("Type 'exit' at Userid prompt to quit without login.")
     print("")
 
     while True:
-        role = prompt_input("Role: ").lower()
-        if role in ("exit", "quit", "q"):
-            log("Proxy shell closed without login.")
-            return 2
-
-        if role not in PREFIX_MAP:
-            print("Invalid role. Choose from: {0}".format(", ".join(sorted(PREFIX_MAP))))
-            continue
+        if default_role:
+            role = default_role
+        else:
+            role = prompt_input("Role: ").lower()
+            if role in ("exit", "quit", "q"):
+                log("Proxy shell closed without login.")
+                return 2
+            if role not in PREFIX_MAP:
+                print("Invalid role. Choose from: {0}".format(", ".join(sorted(PREFIX_MAP))))
+                continue
 
         userid = prompt_input("Userid: ")
         if userid.lower() in ("exit", "quit", "q"):
             log("Proxy shell closed without login.")
             return 2
+        if not userid:
+            print("Userid required.")
+            continue
 
         password = getpass.getpass("IITD proxy password: ")
         try:
@@ -1092,9 +1181,13 @@ def interactive_shell():
             return 0
         except ProxyError as exc:
             print("ERROR: {0}".format(exc))
-            print("Try again, or type 'exit' at the Role prompt.")
+            print("Try again, or type 'exit' at the Userid prompt.")
             print("")
 
+
+def staff_login_shell():
+    """Staff-only interactive login (used by sudo iitd-tool startup)."""
+    return interactive_shell(default_role="staff")
 
 def prompt_input(label):
     if PY3:
@@ -1113,6 +1206,8 @@ def normalize_argv(argv):
         return [argv[0], "help"]
     if command in ("shell", "interactive"):
         return [argv[0], "shell"]
+    if command in ("staff-login", "staff_login"):
+        return [argv[0], "staff-login"]
     if command in PREFIX_MAP:
         userid = argv[2] if len(argv) > 2 else ""
         return [argv[0], "enable", argv[1], userid]
@@ -1125,17 +1220,18 @@ def build_parser():
     roles = ", ".join(sorted(PREFIX_MAP))
     parser = argparse.ArgumentParser(
         prog="iitd-proxy",
-        description="Enable or disable IITD proxy across Ubuntu (apt, snap, GUI, browsers, wget, curl).",
+        description="Enable or disable IITD proxy (user-session without root; system-wide when root via iitd-tool).",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "Examples:\n"
             "  iitd-proxy staff krajaymeena\n"
             "  iitd-proxy phd ankit\n"
-            "  iitd-proxy btech USERID\n"
             "  iitd-proxy logout\n"
             "  iitd-proxy shell\n\n"
-            "After Proxy Setup install, any user can run these without typing sudo.\n"
+            "Any user can run this without sudo (user-session proxy + IITD login).\n"
+            "System-wide apt/snap/browser policies: sudo iitd-tool (staff login at startup).\n"
             "Roles: {0}\n\n"
+            "TLS: verified by default. Set IITD_PROXY_INSECURE_TLS=1 only if needed.\n"
             "Works with Python 2.7 and Python 3.x."
         ).format(roles),
     )
@@ -1151,8 +1247,9 @@ def build_parser():
     enable.add_argument("userid")
     enable.add_argument("password", nargs="?", help="prompted securely if omitted")
 
-    subparsers.add_parser("logout", aliases=("remove", "disable"), help="remove proxy from entire system")
-    subparsers.add_parser("shell", aliases=("interactive",), help="interactive proxy login shell (type exit to quit)")
+    subparsers.add_parser("logout", aliases=("remove", "disable"), help="remove proxy config")
+    subparsers.add_parser("shell", aliases=("interactive",), help="interactive proxy login")
+    subparsers.add_parser("staff-login", help="staff-only login (used by iitd-tool startup)")
     return parser
 
 
@@ -1167,6 +1264,17 @@ def main():
         print_help()
         return 0
 
+    # staff-login before argparse required subcommands on older argparse
+    if len(argv) >= 2 and argv[1] in ("staff-login", "staff_login"):
+        try:
+            return staff_login_shell()
+        except KeyboardInterrupt:
+            print("\nInterrupted", file=sys.stderr)
+            return 130
+        except ProxyError as exc:
+            log("ERROR: {0}".format(exc))
+            return 1
+
     parser = build_parser()
     args = parser.parse_args(argv[1:])
 
@@ -1179,6 +1287,8 @@ def main():
             logout_proxy()
         elif args.command in ("shell", "interactive"):
             return interactive_shell()
+        elif args.command in ("staff-login", "staff_login"):
+            return staff_login_shell()
         else:
             parser.error("Unknown command")
     except KeyboardInterrupt:

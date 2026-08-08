@@ -17,6 +17,9 @@ discover_modules() {
 
     local module_file
     while IFS= read -r -d '' module_file; do
+        unset -f module_run module_supported_versions 2>/dev/null || true
+        unset MODULE_ID MODULE_NAME MODULE_DESCRIPTION MODULE_ORDER 2>/dev/null || true
+
         # shellcheck source=/dev/null
         source "${module_file}"
 
@@ -54,12 +57,13 @@ discover_modules() {
 module_is_supported() {
     local module_id="$1"
 
+    unset -f module_run module_supported_versions 2>/dev/null || true
+    # shellcheck source=/dev/null
+    source "${MODULE_PATHS[${module_id}]}"
+
     if ! declare -f module_supported_versions &>/dev/null; then
         return 0
     fi
-
-    # shellcheck source=/dev/null
-    source "${MODULE_PATHS[${module_id}]}"
 
     local supported
     supported="$(module_supported_versions)"
@@ -159,6 +163,7 @@ run_main_menu() {
         echo
 
         # shellcheck source=/dev/null
+        unset -f module_run module_supported_versions 2>/dev/null || true
         source "${MODULE_PATHS[${module_id}]}"
         module_run "${UBUNTU_VERSION}" "${UBUNTU_CODENAME}" || {
             log_error "Module failed: ${MODULE_NAMES[${module_id}]}"

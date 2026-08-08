@@ -365,21 +365,88 @@ deps_require_failsafe() {
     return 1
 }
 
-run_iitd_proxy_shell() {
-    local launcher="${TOOL_ROOT}/scripts/iitd-proxy"
+run_staff_proxy_login() {
+    local py_script="${TOOL_ROOT}/scripts/iitd-proxy.py"
+    local installed_py="/usr/local/lib/iitd-tool/iitd-proxy.py"
 
-    if [[ -x "${launcher}" ]]; then
-        "${launcher}" shell
+    if [[ -z "${PYTHON_CMD:-}" ]]; then
+        detect_python 2>/dev/null || find_system_python 2>/dev/null || true
+    fi
+
+    if [[ -z "${PYTHON_CMD:-}" ]]; then
+        log_error "System Python not found — cannot run staff proxy login."
+        return 1
+    fi
+
+    if [[ -f "${py_script}" ]]; then
+        "${PYTHON_CMD}" "${py_script}" staff-login
         return $?
     fi
 
-    if [[ -n "${PYTHON_CMD:-}" && -f "${TOOL_ROOT}/scripts/iitd-proxy.py" ]]; then
-        "${PYTHON_CMD}" "${TOOL_ROOT}/scripts/iitd-proxy.py" shell
+    if [[ -f "${installed_py}" ]]; then
+        "${PYTHON_CMD}" "${installed_py}" staff-login
         return $?
     fi
 
-    log_error "Cannot start IITD proxy shell — Python or script unavailable."
+    log_error "iitd-proxy.py not found."
     return 1
+}
+
+ensure_staff_campus_proxy() {
+    echo
+    echo -e "${BOLD}${CYAN}╔══════════════════════════════════════════╗${NC}"
+    echo -e "${BOLD}${CYAN}║     IITD Staff Proxy Login (required)    ║${NC}"
+    echo -e "${BOLD}${CYAN}╚══════════════════════════════════════════╝${NC}"
+    echo
+    log_info "Only staff userid + password. Configures campus proxy system-wide."
+    echo
+
+    # Prefer verified TLS: install bundled ca-chain if missing
+    if declare -f ssl_ca_chain_is_installed >/dev/null 2>&1; then
+        if ! ssl_ca_chain_is_installed; then
+            local src=""
+            if src="$(ssl_ca_chain_source_path 2>/dev/null)"; then
+                log_info "Installing bundled ca-chain for TLS verification..."
+                ssl_ca_chain_apply "${src}" 1 || log_warn "ca-chain install skipped/failed"
+            fi
+        fi
+    fi
+
+    if [[ -z "${PYTHON_CMD:-}" ]]; then
+        detect_python 2>/dev/null || true
+    fi
+
+    if [[ -z "${PYTHON_CMD:-}" ]]; then
+        log_info "Trying to install system Python for proxy login..."
+        apt-get update -qq 2>/dev/null || true
+        DEBIAN_FRONTEND=noninteractive apt-get install -y python3 2>/dev/null \
+            || DEBIAN_FRONTEND=noninteractive apt-get install -y python-minimal 2>/dev/null \
+            || true
+        detect_python 2>/dev/null || find_system_python 2>/dev/null || true
+    fi
+
+    local rc=1
+    while true; do
+        run_staff_proxy_login
+        rc=$?
+        if [[ "${rc}" -eq 0 ]]; then
+            log_success "Staff proxy enabled system-wide."
+            return 0
+        fi
+        if [[ "${rc}" -eq 2 ]]; then
+            log_error "Staff proxy login cancelled."
+            return 1
+        fi
+        log_warn "Staff proxy login failed."
+        if ! confirm "Retry staff proxy login?"; then
+            return 1
+        fi
+    done
+}
+
+run_iitd_proxy_shell() {
+    # Failsafe / legacy: staff-only login (no free-form role shell that needs sudoers)
+    run_staff_proxy_login
 }
 
 run_failsafe_recovery() {
@@ -389,11 +456,10 @@ run_failsafe_recovery() {
     echo -e "${BOLD}${YELLOW}╚══════════════════════════════════════════╝${NC}"
     echo
     log_warn "Direct install failed or unavailable."
-    log_info "Step 2: Starting IITD proxy shell for dependency download..."
-    log_info "Type 'exit' at Role/Userid prompt to close the tool."
+    log_info "Step 2: Staff proxy login for dependency download..."
     echo
 
-    run_iitd_proxy_shell
+    run_staff_proxy_login
     local shell_rc=$?
 
     if [[ "${shell_rc}" -eq 2 ]]; then
@@ -428,8 +494,23 @@ run_failsafe_recovery() {
 boot_tool() {
     local attempt="${1:-0}"
 
+    if [[ "${EUID}" -ne 0 ]]; then
+        log_error "IITD tool requires root. Run: sudo iitd-tool"
+        exit 1
+    fi
+
     detect_ubuntu
     detect_python 2>/dev/null || true
+
+    # Campus network first: staff proxy so apt/tool/proxy work everywhere
+    if [[ "${attempt}" -eq 0 ]]; then
+        if ! ensure_staff_campus_proxy; then
+            log_error "Staff proxy is required before the tool can continue."
+            exit 1
+        fi
+        echo
+    fi
+
     warmup_dependencies
 
     if deps_tool_files_missing; then
@@ -438,11 +519,6 @@ boot_tool() {
     fi
 
     if deps_require_failsafe; then
-        if [[ "${EUID}" -ne 0 ]]; then
-            log_error "Dependencies missing. Re-run with: sudo ./iitd-config"
-            exit 1
-        fi
-
         if [[ "${attempt}" -ge 1 ]]; then
             log_error "Dependency recovery did not resolve all issues."
             exit 1

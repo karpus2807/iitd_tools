@@ -54,12 +54,13 @@ Tool start hote hi automatically check karta hai:
 Agar dependencies missing hon:
 
 1. **Direct try** — internet + `repo.iitd.ernet.in` check → bina proxy install
-2. **Proxy failsafe** — sirf tab jab direct install fail ho → proxy shell → login → install → normal reboot
+2. **Proxy failsafe** — staff proxy login → install → normal restart
 
-Proxy shell cancel: type **`exit`**
+Tool start pe hamesha **staff userid + password** maangta hai (system-wide proxy).
 
 ```bash
-iitd-proxy shell    # manually bhi chala sakte ho (no sudo)
+sudo iitd-tool              # root required; staff proxy at startup
+iitd-proxy staff USERID     # any user, no root — user-session proxy / re-login
 ```
 
 Required dependencies fixed list: `config/dependencies.list`
@@ -136,7 +137,7 @@ iitd_tool/
         └── module.sh
     └── basic_tools/         # Checkbox installer for common CLI tools
         └── module.sh
-    └── ssl_fix/             # Repair CA trust / certificate verify errors
+    └── ssl_fix/             # Install/update/remove CA + SSL Fix
         └── module.sh
     └── snmp/                # snmpd install / config / remove
         └── module.sh
@@ -154,17 +155,6 @@ Menu **SNMP Setup**:
 
 Template defaults: SNMPv2c, `rocommunity cse!005 10.208.20.30`, UDP 161, DMI `extend` lines.  
 `snmpd.conf` is registered in Backups & Restore.
-
-## ThingsBoard Telemetry (Raspberry Pi 3 / 4)
-
-Menu **ThingsBoard Telemetry** — MQTT client sends CPU/RAM/disk/IP to ThingsBoard.
-
-1. Install (`tb-mqtt-client` + script + `iitd-thingsboard.service`)  
-2. Configure `TB_HOST`, `TB_ACCESS_TOKEN`, interval  
-3. Enable & start service  
-
-Pi 3–friendly: safe swap math, eth0/wlan0 MAC preference, interval ≥ 30s, low `Nice` priority.  
-Config: `/etc/iitd-thingsboard.conf` · Logs: `journalctl -u iitd-thingsboard -f`
 
 ## Adding a New Module
 
@@ -193,16 +183,13 @@ Tool automatically `modules/*/module.sh` files discover karega aur menu mein add
 
 ## IITD Repo Module
 
-Submenu — har step alag se chalao:
+Submenu:
 
-1. Backup sources.list  
-2. Apply IITD mirror (`repo.iitd.ernet.in`)  
-3. Disable ubuntu.sources  
-4. Disable 3rd party repositories  
-5. Run apt update  
-6. Restore original repository status  
+1. Apply IITD mirror (`repo.iitd.ernet.in`)  
+2. Disable official / 3rd-party sources as needed  
+3. Update apt  
 
-Backups & restore: `/var/lib/iitd-tool/backups/`
+Backups & restore: unified **Backups & Restore** menu (`/var/lib/iitd-tool/backups/`).
 
 System install: `sudo iitd-tool install` → `/etc/iitd-tool`
 
@@ -212,7 +199,7 @@ Menu **Tool Updater** — GitHub (`karpus2807/iitd_tools`) se latest 5 releases/
 
 - Koi bhi entry choose karke upgrade **ya** downgrade  
 - Update ke dauran **Do NOT cancel** warning  
-- `/etc/iitd-tool` clean + reinstall; `/var/lib/iitd-tool/backups` **preserve**  
+- Atomic staging swap into `/etc/iitd-tool`; `/var/lib/iitd-tool/backups` **preserve**  
 - Install ke baad backups list show  
 
 ## Backups & Restore
@@ -251,68 +238,61 @@ Menu option **Basic Tools Installer** — common CLI tools checkbox list se inst
 
 Already installed packages list mein `[installed]` dikhte hain; sirf missing packages install hote hain.
 
-## SSL Fix Module
+## SSL / Certificates Module
 
-Menu option **SSL Fix** — certificate / TLS trust issues theek karta hai:
+Menu option **SSL / Certificates**:
 
-1. Legacy custom IITD/CCIITD CA files remove  
-2. `ca-certificates` reinstall  
-3. `update-ca-certificates --fresh`  
-4. System time hint + optional HTTPS test  
+1. **Install Certificate** — bundled `config/certs/ca-chain.crt` (GlobalSign chain) system trust store mein install  
+2. **Update Certificate** — same ca-chain refresh / overwrite  
+3. **Remove Certificate** — IITD ca-chain + local/custom CAs hatao, official Ubuntu/Debian `ca-certificates` se sync  
+4. **Certificate Status** — installed vs bundled cert details  
+5. **SSL Fix** — legacy CCIITD CA hatao, `ca-certificates` reinstall, trust refresh, phir ca-chain re-apply  
 
-Campus pe updates ke liye SSL Fix ke baad proxy ON rakho (`iitd-proxy`).
+Install paths:
+- `/usr/local/share/ca-certificates/iitd-ca-chain-NN.crt`
+- `/usr/local/lib/iitd-tool/certs/ca-chain.crt`
+
+Campus pe updates ke liye SSL Fix / cert install ke baad proxy ON rakho (`iitd-proxy`).
 
 ## Proxy Module
 
-Proxy module **sirf ek baar** admin `sudo iitd-tool` se install karta hai. Uske baad **kisi bhi user** se proxy enable/disable bina `sudo` type kiye.
+**Design:**
+- `sudo iitd-tool` — root required; startup pe **staff** userid + password → system-wide proxy (apt, snap, browsers, …)
+- `iitd-proxy` — **kisi bhi user**, **bina root/sudo**; IITD login + user-session settings. No passwordless sudoers.
 
-### Step 1: Install (ek baar, admin / sudo)
+### Step 1: Install CLI (optional, admin)
 
 ```bash
-sudo ./iitd-config
-# Menu se "Proxy Setup (Install iitd-proxy)" select karo
+sudo iitd-tool
+# Menu → Proxy Setup (Install iitd-proxy)
 ```
 
-Yeh install karega:
-- `/usr/local/bin/iitd-proxy` (launcher — non-root pe auto-elevate)
+Installs:
+- `/usr/local/bin/iitd-proxy` (no auto-sudo)
 - `/usr/local/lib/iitd-tool/iitd-proxy.py`
-- `/etc/sudoers.d/iitd-proxy` (NOPASSWD — password prompt nahi)
-- Dependencies: `python3` ya `python-minimal` (auto-detect) + `ca-certificates`
+- Removes legacy `/etc/sudoers.d/iitd-proxy` if present
+- `python3` / `python-minimal` + `ca-certificates`
 
-**Python 2 aur 3 dono supported** — sirf **system Python** use hota hai (`/usr/bin/python3` ya `/usr/bin/python2`). Pyenv, conda, `/usr/local` wale custom Python ignore hote hain.
-
-### Step 2: Proxy enable (kisi bhi user, bina sudo)
+### Step 2: Daily use
 
 ```bash
-iitd-proxy staff krajaymeena
-iitd-proxy phd ankit
-iitd-proxy btech USERID
+sudo iitd-tool                 # staff login → system-wide
+iitd-proxy staff USERID        # any user: login + user-session
+iitd-proxy logout              # user-session clear (system clear only if root)
 ```
 
-Password prompt aayega (IITD kerberos/proxy password — local sudo password nahi).
+TLS verified by default. Only if needed: `IITD_PROXY_INSECURE_TLS=1`. Prefer SSL menu → Install Certificate (`ca-chain`).
 
-### Step 3: Proxy hatana (logout)
-
-```bash
-iitd-proxy logout
-```
-
-Pure system se proxy remove ho jayegi.
-
-### Kya configure hota hai
+### What system-wide mode configures (root / iitd-tool)
 
 | Component | Method |
 |-----------|--------|
-| APT / apt store | `/etc/apt/apt.conf.d/95iitd-proxy` |
-| Snap Store | `snap set system proxy.*` |
-| Git / GitHub | `git config --system http(s).proxy` + host-specific GitHub proxies |
-| Ubuntu GUI (GNOME) | `gsettings` system proxy |
-| wget | `~/.wgetrc` |
-| curl | `~/.curlrc` |
-| Chrome | `/etc/opt/chrome/policies/managed/` |
-| Chromium | `/etc/chromium/policies/managed/` |
-| Firefox | `/etc/firefox/policies/policies.json` |
-| All shell/apps | `/etc/environment`, `/etc/profile.d/`, systemd |
+| APT | `/etc/apt/apt.conf.d/95iitd-proxy` |
+| Snap | `snap set system proxy.*` |
+| Git / GitHub | system + user git proxy |
+| GNOME | gsettings |
+| Chrome / Chromium / Firefox | managed policies |
+| Shell/apps | `/etc/environment`, profile.d, systemd |
 
 ### Roles
 
@@ -325,11 +305,9 @@ Pure system se proxy remove ho jayegi.
 | faculty | 82 |
 | visitor | 21 |
 
-Log file: `/var/log/iitd-proxy.log`
-
 ## Requirements
 
 - Bash 4+
 - Ubuntu 16.04 to 26.04 **or** Debian 10 to 13
 - Python 2.7 **or** Python 3.x from `/usr/bin` only (distro-managed; custom installs ignored)
-- Root access (sudo) for system configuration modules
+- Root (`sudo iitd-tool`) for admin tool + system-wide proxy

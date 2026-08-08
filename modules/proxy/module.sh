@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
-# Proxy module — installs iitd-proxy command on the system (one-time).
-# After install, any user runs: iitd-proxy <role> <userid>  (no sudo typed)
+# Proxy module — installs iitd-proxy CLI (no sudoers / no NOPASSWD).
+# System-wide proxy is enabled by sudo iitd-tool (staff login at startup).
+# Any user may run iitd-proxy for login + user-session settings (no root).
 
 MODULE_ID="proxy"
 MODULE_NAME="Proxy Setup (Install iitd-proxy)"
-MODULE_DESCRIPTION="Install iitd-proxy — then any user can login/logout without sudo"
+MODULE_DESCRIPTION="Install iitd-proxy CLI — users need no sudo; system proxy via iitd-tool"
 MODULE_ORDER=20
 
 INSTALL_DIR="/usr/local/lib/iitd-tool"
 INSTALL_BIN="/usr/local/bin/iitd-proxy"
 SOURCE_LAUNCHER="${TOOL_ROOT}/scripts/iitd-proxy"
 SOURCE_PY="${TOOL_ROOT}/scripts/iitd-proxy.py"
-SOURCE_SUDOERS="${TOOL_ROOT}/config/sudoers.iitd-proxy"
 SUDOERS_DEST="/etc/sudoers.d/iitd-proxy"
 
 module_supported_versions() {
@@ -67,7 +67,9 @@ remove_legacy_iitd_ca_certificate() {
         fi
     done
 
-    rmdir "${INSTALL_DIR}/certs" 2>/dev/null || true
+    if [[ -d "${INSTALL_DIR}/certs" ]] && [[ ! -e "${INSTALL_DIR}/certs/ca-chain.crt" ]]; then
+        rmdir "${INSTALL_DIR}/certs" 2>/dev/null || true
+    fi
 
     if [[ "${removed}" -eq 1 ]] && command -v update-ca-certificates >/dev/null 2>&1; then
         update-ca-certificates
@@ -75,36 +77,12 @@ remove_legacy_iitd_ca_certificate() {
     fi
 }
 
-install_iitd_proxy_sudoers() {
-    if [[ ! -f "${SOURCE_SUDOERS}" ]]; then
-        log_warn "sudoers template missing: ${SOURCE_SUDOERS}"
-        return 1
-    fi
-
-    local tmp
-    tmp="$(mktemp)"
-    cp "${SOURCE_SUDOERS}" "${tmp}"
-    chmod 440 "${tmp}"
-
-    if command -v visudo >/dev/null 2>&1; then
-        if ! visudo -cf "${tmp}" >/dev/null 2>&1; then
-            log_error "Invalid sudoers template — not installing ${SUDOERS_DEST}"
-            rm -f "${tmp}"
-            return 1
-        fi
-    fi
-
-    install -m 0440 "${tmp}" "${SUDOERS_DEST}"
-    rm -f "${tmp}"
-
-    if command -v visudo >/dev/null 2>&1 && ! visudo -cf "${SUDOERS_DEST}" >/dev/null 2>&1; then
-        log_error "Installed sudoers failed validation — removing ${SUDOERS_DEST}"
+remove_legacy_proxy_sudoers() {
+    if [[ -e "${SUDOERS_DEST}" ]]; then
         rm -f "${SUDOERS_DEST}"
-        return 1
+        log_success "Removed legacy passwordless sudoers: ${SUDOERS_DEST}"
+        log_info "iitd-proxy no longer grants sudo to any user."
     fi
-
-    log_success "Installed passwordless rule: ${SUDOERS_DEST}"
-    log_info "Any user can now run: iitd-proxy <role> <userid>  (no sudo password)"
 }
 
 install_iitd_proxy() {
@@ -115,11 +93,10 @@ install_iitd_proxy() {
 
     mkdir -p "${INSTALL_DIR}"
     remove_legacy_iitd_ca_certificate
+    remove_legacy_proxy_sudoers
     install -m 0755 "${SOURCE_LAUNCHER}" "${INSTALL_BIN}"
     install -m 0644 "${SOURCE_PY}" "${INSTALL_DIR}/iitd-proxy.py"
     install -m 0644 "${TOOL_ROOT}/lib/python.sh" "${INSTALL_DIR}/python.sh"
-
-    install_iitd_proxy_sudoers || log_warn "sudoers not installed — users may still need sudo password"
 
     log_success "Installed ${INSTALL_BIN}"
     log_success "Installed ${INSTALL_DIR}/iitd-proxy.py"
@@ -132,10 +109,13 @@ show_usage() {
     detect_python 2>/dev/null || true
 
     echo
-    echo -e "${BOLD}Usage after install (no sudo needed):${NC}"
-    echo "  iitd-proxy <role> <userid>    # enable proxy system-wide"
-    echo "  iitd-proxy logout             # remove proxy from system"
+    echo -e "${BOLD}Usage (no sudo — any user):${NC}"
+    echo "  iitd-proxy <role> <userid>    # IITD login + user-session proxy"
+    echo "  iitd-proxy logout             # clear user-session proxy (and system if root)"
     echo "  iitd-proxy shell              # interactive login"
+    echo
+    echo -e "${BOLD}System-wide apt/snap/browsers:${NC}"
+    echo "  sudo iitd-tool                # staff login at startup configures everything"
     echo
     echo -e "${BOLD}Roles:${NC} btech, mtech, phd, staff, faculty, visitor"
     if [[ -n "${PYTHON_CMD:-}" ]]; then
@@ -147,9 +127,8 @@ show_usage() {
     echo "  iitd-proxy phd ankit"
     echo "  iitd-proxy logout"
     echo
-    echo "Admin installs once (menu → Proxy Setup). After that any user can login/logout."
-    echo "Proxy applies to: apt, snap, git/GitHub, GNOME GUI, wget, curl, Chrome, Chromium, Firefox"
-    echo "HTTPS login uses system CAs first; TLS verify-off fallback if needed (no custom cert)."
+    echo "No passwordless sudoers. Proxy CLI never elevates to root."
+    echo "HTTPS login uses verified TLS (set IITD_PROXY_INSECURE_TLS=1 only if needed)."
 }
 
 module_run() {
@@ -169,10 +148,10 @@ module_run() {
         log_warn "Python not found yet — install will try to add python3 or python-minimal."
     fi
     echo
-    echo "After install, any user enables proxy with (no sudo):"
-    echo "  iitd-proxy <role> <userid>"
-    echo
-    echo "Passwordless sudoers rule will be installed at ${SUDOERS_DEST}"
+    echo "After install:"
+    echo "  • Any user: iitd-proxy <role> <userid>  (no sudo, no root)"
+    echo "  • Admin:    sudo iitd-tool  → staff proxy at startup (system-wide)"
+    echo "  • Removes any old /etc/sudoers.d/iitd-proxy rule"
     echo
 
     if [[ -x "${INSTALL_BIN}" ]] && [[ -f "${INSTALL_DIR}/iitd-proxy.py" ]]; then
