@@ -98,11 +98,11 @@ iitd-proxy logout
 iitd-proxy shell
 ```
 
-**System-wide** apt/snap/browsers: `sudo iitd-tool` startup pe **staff** userid + password (no sudoers / NOPASSWD).
+**System-wide** apt/snap/docker/browsers: `sudo iitd-tool` startup pe **staff** userid + password (no sudoers / NOPASSWD).
 
 **TLS:** verified by default. Prefer SSL → Install Certificate (`ca-chain`). Optional: `IITD_PROXY_INSECURE_TLS=1`.
 
-**Proxy covers (system-wide):** apt, snap, git/GitHub, GNOME, wget/curl, Chrome/Chromium/Firefox.
+**Proxy covers (system-wide):** apt, snap, **docker** (daemon + client), git/GitHub, GNOME, wget/curl, Chrome/Chromium/Firefox.
 
 ### `6` — Basic Tools Installer
 
@@ -177,6 +177,8 @@ Cancel: **`exit`**
 
 | Date | Update |
 |------|--------|
+| 2026-09-15 | iitd-proxy: skip staff login at tool start if proxy already configured; `status` / `check-active` |
+| 2026-09-15 | iitd-proxy: Docker daemon + client proxy (systemd drop-in + ~/.docker/config.json) |
 | 2026-07-24 | iitd-proxy: Git/GitHub system proxy (with snap) for clone/API/assets |
 | 2026-07-23 | ThingsBoard Telemetry module (Pi 3/4 MQTT client + systemd) |
 | 2026-07-15 | SNMP Setup menu (install/config/remove + snmpd.conf backup) |

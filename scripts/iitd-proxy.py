@@ -63,6 +63,8 @@ ENV_FILE = "/etc/environment"
 PROFILE_FILE = "/etc/profile.d/iitd-proxy.sh"
 SYSTEMD_PROXY_FILE = "/etc/systemd/system.conf.d/95iitd-proxy.conf"
 SYSTEMD_USER_PROXY_FILE = "/etc/systemd/user.conf.d/95iitd-proxy.conf"
+DOCKER_PROXY_DIR = "/etc/systemd/system/docker.service.d"
+DOCKER_PROXY_FILE = "/etc/systemd/system/docker.service.d/http-proxy.conf"
 CHROME_POLICY_FILE = "/etc/opt/chrome/policies/managed/iitd-proxy.json"
 CHROMIUM_POLICY_FILE = "/etc/chromium/policies/managed/iitd-proxy.json"
 FIREFOX_POLICY_FILE = "/etc/firefox/policies/policies.json"
@@ -592,6 +594,199 @@ def configure_snap(prefix):
     return "OK"
 
 
+def _docker_daemon_installed():
+    return path_exists("/lib/systemd/system/docker.service") or path_exists(
+        "/usr/lib/systemd/system/docker.service"
+    ) or bool(shutil.which("dockerd"))
+
+
+def _docker_cli_installed():
+    return bool(shutil.which("docker"))
+
+
+def _load_json_file(path):
+    if not path_exists(path):
+        return {}
+    try:
+        data = json.loads(read_text_file(path))
+        if isinstance(data, dict):
+            return data
+    except (JSONDecodeError, OSError, IOError) as exc:
+        log("Could not parse {0}: {1}".format(path, exc))
+    return {}
+
+
+def configure_docker_daemon(prefix):
+    """Systemd drop-in so docker pull/push uses campus HTTP proxy."""
+    if not is_root():
+        return "SKIPPED"
+    if not _docker_daemon_installed():
+        log("Docker daemon: not installed, skipping.")
+        return "SKIPPED"
+
+    url = proxy_url(prefix).rstrip("/")
+    content = (
+        "# Managed by {0}. Remove with: iitd-proxy logout\n"
+        "[Service]\n"
+        'Environment="HTTP_PROXY={1}"\n'
+        'Environment="HTTPS_PROXY={1}"\n'
+        'Environment="http_proxy={1}"\n'
+        'Environment="https_proxy={1}"\n'
+        'Environment="NO_PROXY={2}"\n'
+        'Environment="no_proxy={2}"\n'
+    ).format(MANAGED_MARKER, url, NO_PROXY)
+
+    mkdir_p(DOCKER_PROXY_DIR)
+    write_text_file(DOCKER_PROXY_FILE, content)
+    log("Docker daemon proxy configured: {0}".format(DOCKER_PROXY_FILE))
+
+    if shutil.which("systemctl"):
+        run_cmd(["systemctl", "daemon-reload"], check=False, timeout=30)
+        # Restart only if docker is already active — avoid starting it unexpectedly.
+        active = run_cmd(
+            ["systemctl", "is-active", "--quiet", "docker.service"],
+            check=False,
+            timeout=10,
+        )
+        if active.returncode == 0:
+            result = run_cmd(
+                ["systemctl", "restart", "docker.service"],
+                check=False,
+                timeout=60,
+            )
+            if result.returncode != 0:
+                log("Docker daemon proxy written, but restart failed — run: sudo systemctl restart docker")
+                return "CHECK"
+            log("Docker daemon restarted with proxy.")
+        else:
+            log("Docker daemon not running; proxy will apply on next start.")
+    return "OK"
+
+
+def configure_docker_client(prefix):
+    """Write Docker CLI proxies into ~/.docker/config.json (build / compose / client)."""
+    if not _docker_cli_installed() and not target_user_record():
+        # Still write client config if a desktop user exists — useful before docker install.
+        pass
+
+    user_info = target_user_record()
+    if not user_info:
+        if is_root():
+            log("Docker client: no desktop user (SUDO_USER); skipping ~/.docker/config.json")
+            return "SKIPPED"
+        try:
+            user_info = pwd.getpwuid(os.getuid())
+        except KeyError:
+            return "SKIPPED"
+
+    url = proxy_url(prefix).rstrip("/")
+    config_dir = path_join(user_info.pw_dir, ".docker")
+    config_path = path_join(config_dir, "config.json")
+    mkdir_p(config_dir)
+
+    data = _load_json_file(config_path)
+    proxies = data.get("proxies")
+    if not isinstance(proxies, dict):
+        proxies = {}
+    proxies["default"] = {
+        "httpProxy": url,
+        "httpsProxy": url,
+        "noProxy": NO_PROXY,
+    }
+    data["proxies"] = proxies
+
+    write_text_file(config_path, json.dumps(data, indent=2, sort_keys=True) + "\n")
+    chown_to_user(config_dir, user_info)
+    chown_to_user(config_path, user_info)
+    log("Docker client proxy configured: {0}".format(config_path))
+    return "OK"
+
+
+def configure_docker(prefix, system_wide=True):
+    """Enable Docker daemon (root) + client proxy for campus networks."""
+    client_status = configure_docker_client(prefix)
+    if system_wide and is_root():
+        daemon_status = configure_docker_daemon(prefix)
+    else:
+        daemon_status = "SKIPPED"
+
+    if daemon_status == "SKIPPED" and client_status == "SKIPPED":
+        return "SKIPPED"
+    if "CHECK" in (daemon_status, client_status):
+        return "CHECK"
+    if daemon_status == "OK" or client_status == "OK":
+        return "OK"
+    return "SKIPPED"
+
+
+def remove_docker_daemon_proxy():
+    if not is_root():
+        return "SKIPPED"
+    if not path_exists(DOCKER_PROXY_FILE) and not _docker_daemon_installed():
+        return "SKIPPED"
+
+    had_file = path_exists(DOCKER_PROXY_FILE)
+    remove_path(DOCKER_PROXY_FILE)
+    try:
+        if path_exists(DOCKER_PROXY_DIR) and not os.listdir(DOCKER_PROXY_DIR):
+            os.rmdir(DOCKER_PROXY_DIR)
+    except (OSError, IOError):
+        pass
+
+    if not had_file:
+        return "SKIPPED"
+
+    if shutil.which("systemctl"):
+        run_cmd(["systemctl", "daemon-reload"], check=False, timeout=30)
+        active = run_cmd(
+            ["systemctl", "is-active", "--quiet", "docker.service"],
+            check=False,
+            timeout=10,
+        )
+        if active.returncode == 0:
+            run_cmd(["systemctl", "restart", "docker.service"], check=False, timeout=60)
+            log("Docker daemon restarted without proxy.")
+    return "OK"
+
+
+def remove_docker_client_proxy():
+    user_info = target_user_record()
+    if not user_info:
+        if is_root():
+            return "SKIPPED"
+        try:
+            user_info = pwd.getpwuid(os.getuid())
+        except KeyError:
+            return "SKIPPED"
+
+    config_path = path_join(user_info.pw_dir, ".docker", "config.json")
+    if not path_exists(config_path):
+        return "SKIPPED"
+
+    data = _load_json_file(config_path)
+    if "proxies" not in data:
+        return "SKIPPED"
+
+    data.pop("proxies", None)
+    if data:
+        write_text_file(config_path, json.dumps(data, indent=2, sort_keys=True) + "\n")
+        chown_to_user(config_path, user_info)
+    else:
+        remove_path(config_path)
+    log("Docker client proxy removed from {0}".format(config_path))
+    return "OK"
+
+
+def remove_docker_proxy(system_wide=True):
+    client_status = remove_docker_client_proxy()
+    daemon_status = remove_docker_daemon_proxy() if system_wide and is_root() else "SKIPPED"
+    if daemon_status == "SKIPPED" and client_status == "SKIPPED":
+        return "SKIPPED"
+    if "CHECK" in (daemon_status, client_status):
+        return "CHECK"
+    return "OK"
+
+
 # GitHub-related hosts — explicit git proxy entries so clone/API/assets work on campus.
 GITHUB_PROXY_HOSTS = (
     "github.com",
@@ -948,6 +1143,134 @@ def save_state(role, userid, prefix):
     write_text_file(STATE_FILE, json.dumps(state, indent=2, sort_keys=True) + "\n")
 
 
+def load_state():
+    """Return saved proxy state dict, or None."""
+    if not path_exists(STATE_FILE):
+        return None
+    try:
+        data = json.loads(read_text_file(STATE_FILE))
+        if isinstance(data, dict) and data.get("proxy_host"):
+            return data
+    except (JSONDecodeError, OSError, IOError):
+        return None
+    return None
+
+
+def proxy_is_configured():
+    """True when system-wide proxy files from a previous login are present."""
+    state = load_state()
+    if not state:
+        return False
+    if not path_exists(APT_PROXY_FILE):
+        return False
+    if not path_exists(PROFILE_FILE) and not path_exists(ENV_FILE):
+        # Older installs may only have apt — still treat as configured if state+apt exist
+        return True
+    return True
+
+
+def proxy_connectivity_ok(timeout=6):
+    """
+    Best-effort check that campus proxy auth still works.
+    Uses saved proxy host; returns True if a small HTTP fetch succeeds via the proxy.
+    """
+    state = load_state()
+    if not state:
+        return False
+
+    host = state.get("proxy_host")
+    port = int(state.get("proxy_port") or PROXY_PORT)
+    if not host:
+        return False
+
+    proxy = "http://{0}:{1}".format(host, port)
+    # Prefer HTTP test URL — avoids TLS complications for a connectivity probe
+    test_urls = (
+        "http://archive.ubuntu.com/ubuntu/",
+        "http://deb.debian.org/debian/",
+        "http://connectivity-check.ubuntu.com/",
+    )
+
+    if shutil.which("curl"):
+        for url in test_urls:
+            try:
+                proc = subprocess.Popen(
+                    [
+                        "curl", "-sS", "-o", "/dev/null", "-w", "%{http_code}",
+                        "--max-time", str(timeout),
+                        "--proxy", proxy,
+                        url,
+                    ],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    universal_newlines=not PY2,
+                )
+                stdout, _ = proc.communicate()
+                code = decode_output(stdout).strip()
+                if proc.returncode == 0 and code and code[0] in ("2", "3"):
+                    return True
+            except Exception:
+                continue
+        return False
+
+    # Fallback without curl: open via urllib ProxyHandler
+    try:
+        if PY3:
+            handler = urllib.request.ProxyHandler({"http": proxy, "https": proxy})
+            opener = urllib.request.build_opener(handler)
+            for url in test_urls:
+                try:
+                    resp = opener.open(url, timeout=timeout)
+                    if 200 <= getattr(resp, "status", 200) < 400:
+                        return True
+                except Exception:
+                    continue
+        else:
+            handler = urllib2.ProxyHandler({"http": proxy, "https": proxy})
+            opener = urllib2.build_opener(handler)
+            for url in test_urls:
+                try:
+                    resp = opener.open(url, timeout=timeout)
+                    if resp.getcode() and 200 <= resp.getcode() < 400:
+                        return True
+                except Exception:
+                    continue
+    except Exception:
+        return False
+    return False
+
+
+def proxy_is_active():
+    """
+    True when a previous system-wide login left config on disk.
+    Used by iitd-tool startup to skip asking for password again.
+    Reachability is reported separately (session can expire later).
+    """
+    return proxy_is_configured()
+
+
+def print_proxy_status():
+    state = load_state()
+    configured = proxy_is_configured()
+    print("IITD proxy status")
+    print("-----------------")
+    if not state:
+        print("State:       not found ({0})".format(STATE_FILE))
+    else:
+        print("State:       {0}".format(STATE_FILE))
+        print("Role:        {0}".format(state.get("role", "?")))
+        print("Userid:      {0}".format(state.get("userid", "?")))
+        print("Proxy:       {0}:{1}".format(state.get("proxy_host", "?"), state.get("proxy_port", PROXY_PORT)))
+        print("Updated:     {0}".format(state.get("updated_at", "?")))
+    print("APT config:  {0}".format("yes" if path_exists(APT_PROXY_FILE) else "no"))
+    print("Configured:  {0}".format("yes" if configured else "no"))
+    if configured:
+        ok = proxy_connectivity_ok()
+        print("Reachable:   {0}".format("yes" if ok else "no (session may have expired — login again)"))
+        return 0 if ok else 1
+    return 1
+
+
 def remove_path(path):
     try:
         if path_exists(path):
@@ -1070,6 +1393,7 @@ def enable_proxy(role, userid, password):
     snap_status = "SKIPPED"
     browser_status = "SKIPPED"
     apt_status = "SKIPPED"
+    docker_status = "SKIPPED"
 
     if system_wide:
         configure_apt(prefix)
@@ -1077,12 +1401,14 @@ def enable_proxy(role, userid, password):
         configure_systemd(prefix)
         apt_status = "OK"
         snap_status = configure_snap(prefix)
+        docker_status = configure_docker(prefix, system_wide=True)
         browser_status = configure_browser_policies(prefix)
         git_status = configure_git(prefix, system_wide=True)
         gnome_status = configure_gsettings(prefix)
         user_status = configure_user_tools(prefix)
         save_state(role, userid, prefix)
     else:
+        docker_status = configure_docker(prefix, system_wide=False)
         git_status = configure_git(prefix, system_wide=False)
         gnome_status = configure_gsettings(prefix)
         user_status = configure_user_tools(prefix)
@@ -1092,6 +1418,7 @@ def enable_proxy(role, userid, password):
     log("-------------------")
     log("APT:       {0}".format(apt_status))
     log("Snap:      {0}".format(snap_status))
+    log("Docker:    {0}".format(docker_status))
     log("GitHub:    {0}".format(git_status))
     log("GUI:       {0}".format(gnome_status))
     log("Browsers:  {0}".format(browser_status))
@@ -1099,9 +1426,11 @@ def enable_proxy(role, userid, password):
     log("")
     if system_wide:
         log("Proxy enabled system-wide. Restart browsers if they were already open.")
+        if docker_status in ("OK", "CHECK"):
+            log("Docker: pull/build use campus proxy. Verify: sudo systemctl show --property=Environment docker")
     else:
         log("User-session proxy enabled (login OK).")
-        log("System-wide apt/snap/browser policies: run sudo iitd-tool (staff login).")
+        log("System-wide apt/snap/docker/browser policies: run sudo iitd-tool (staff login).")
 
 
 def logout_proxy():
@@ -1109,6 +1438,7 @@ def logout_proxy():
 
     snap_status = "SKIPPED"
     browser_status = "SKIPPED"
+    docker_status = "SKIPPED"
 
     if system_wide:
         remove_path(APT_PROXY_FILE)
@@ -1117,11 +1447,14 @@ def logout_proxy():
         remove_path(SYSTEMD_USER_PROXY_FILE)
         remove_environment_entries()
         snap_status = remove_snap_proxy()
+        docker_status = remove_docker_proxy(system_wide=True)
         browser_status = remove_browser_policies()
         if shutil.which("systemctl"):
             run_cmd(["systemctl", "daemon-reexec"], check=False, timeout=15)
         if path_exists(STATE_FILE):
             remove_path(STATE_FILE)
+    else:
+        docker_status = remove_docker_proxy(system_wide=False)
 
     git_status = remove_git_proxy(system_wide=system_wide)
     gnome_status = remove_gsettings_proxy()
@@ -1131,6 +1464,7 @@ def logout_proxy():
     log("Proxy logout summary")
     log("--------------------")
     log("Snap:      {0}".format(snap_status))
+    log("Docker:    {0}".format(docker_status))
     log("GitHub:    {0}".format(git_status))
     log("GUI:       {0}".format(gnome_status))
     log("Browsers:  {0}".format(browser_status))
@@ -1140,7 +1474,7 @@ def logout_proxy():
         log("Proxy removed from system.")
     else:
         log("User-session proxy cleared.")
-        log("System-wide apt/snap (if any) still needs: sudo iitd-proxy logout")
+        log("System-wide apt/snap/docker (if any) still needs: sudo iitd-proxy logout")
 
 
 def interactive_shell(default_role=None):
@@ -1208,6 +1542,10 @@ def normalize_argv(argv):
         return [argv[0], "shell"]
     if command in ("staff-login", "staff_login"):
         return [argv[0], "staff-login"]
+    if command in ("status", "check"):
+        return [argv[0], "status"]
+    if command in ("check-active", "is-active", "active"):
+        return [argv[0], "check-active"]
     if command in PREFIX_MAP:
         userid = argv[2] if len(argv) > 2 else ""
         return [argv[0], "enable", argv[1], userid]
@@ -1227,9 +1565,11 @@ def build_parser():
             "  iitd-proxy staff krajaymeena\n"
             "  iitd-proxy phd ankit\n"
             "  iitd-proxy logout\n"
+            "  iitd-proxy status\n"
             "  iitd-proxy shell\n\n"
             "Any user can run this without sudo (user-session proxy + IITD login).\n"
-            "System-wide apt/snap/browser policies: sudo iitd-tool (staff login at startup).\n"
+            "System-wide apt/snap/docker/browser policies: sudo iitd-tool (staff login at startup).\n"
+            "If proxy is already active, iitd-tool skips login automatically.\n"
             "Roles: {0}\n\n"
             "TLS: verified by default. Set IITD_PROXY_INSECURE_TLS=1 only if needed.\n"
             "Works with Python 2.7 and Python 3.x."
@@ -1250,6 +1590,12 @@ def build_parser():
     subparsers.add_parser("logout", aliases=("remove", "disable"), help="remove proxy config")
     subparsers.add_parser("shell", aliases=("interactive",), help="interactive proxy login")
     subparsers.add_parser("staff-login", help="staff-only login (used by iitd-tool startup)")
+    subparsers.add_parser("status", aliases=("check",), help="show whether proxy is configured/active")
+    subparsers.add_parser(
+        "check-active",
+        aliases=("is-active", "active"),
+        help="exit 0 if proxy already configured and reachable (no prompts)",
+    )
     return parser
 
 
@@ -1263,6 +1609,26 @@ def main():
     if len(argv) >= 2 and argv[1] == "help":
         print_help()
         return 0
+
+    # Quiet active-check for iitd-tool startup (no argparse noise)
+    if len(argv) >= 2 and argv[1] in ("check-active", "is-active", "active"):
+        if proxy_is_active():
+            state = load_state() or {}
+            reachable = proxy_connectivity_ok()
+            msg = "Proxy already active ({0}/{1} @ {2}:{3})".format(
+                state.get("role", "?"),
+                state.get("userid", "?"),
+                state.get("proxy_host", "?"),
+                state.get("proxy_port", PROXY_PORT),
+            )
+            if not reachable:
+                msg += " — config present; network probe failed (re-login if downloads fail)"
+            log(msg)
+            return 0
+        return 1
+
+    if len(argv) >= 2 and argv[1] in ("status", "check"):
+        return print_proxy_status()
 
     # staff-login before argparse required subcommands on older argparse
     if len(argv) >= 2 and argv[1] in ("staff-login", "staff_login"):
@@ -1289,6 +1655,10 @@ def main():
             return interactive_shell()
         elif args.command in ("staff-login", "staff_login"):
             return staff_login_shell()
+        elif args.command in ("status", "check"):
+            return print_proxy_status()
+        elif args.command in ("check-active", "is-active", "active"):
+            return 0 if proxy_is_active() else 1
         else:
             parser.error("Unknown command")
     except KeyboardInterrupt:

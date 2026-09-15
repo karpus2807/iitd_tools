@@ -257,7 +257,7 @@ Campus pe updates ke liye SSL Fix / cert install ke baad proxy ON rakho (`iitd-p
 ## Proxy Module
 
 **Design:**
-- `sudo iitd-tool` — root required; startup pe **staff** userid + password → system-wide proxy (apt, snap, browsers, …)
+- `sudo iitd-tool` — root required; startup pe **staff** userid + password → system-wide proxy (apt, snap, docker, browsers, …)
 - `iitd-proxy` — **kisi bhi user**, **bina root/sudo**; IITD login + user-session settings. No passwordless sudoers.
 
 ### Step 1: Install CLI (optional, admin)
@@ -289,6 +289,7 @@ TLS verified by default. Only if needed: `IITD_PROXY_INSECURE_TLS=1`. Prefer SSL
 |-----------|--------|
 | APT | `/etc/apt/apt.conf.d/95iitd-proxy` |
 | Snap | `snap set system proxy.*` |
+| Docker | daemon: `/etc/systemd/system/docker.service.d/http-proxy.conf` · client: `~/.docker/config.json` |
 | Git / GitHub | system + user git proxy |
 | GNOME | gsettings |
 | Chrome / Chromium / Firefox | managed policies |

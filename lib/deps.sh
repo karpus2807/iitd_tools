@@ -365,7 +365,7 @@ deps_require_failsafe() {
     return 1
 }
 
-run_staff_proxy_login() {
+run_iitd_proxy_cmd() {
     local py_script="${TOOL_ROOT}/scripts/iitd-proxy.py"
     local installed_py="/usr/local/lib/iitd-tool/iitd-proxy.py"
 
@@ -374,22 +374,36 @@ run_staff_proxy_login() {
     fi
 
     if [[ -z "${PYTHON_CMD:-}" ]]; then
-        log_error "System Python not found — cannot run staff proxy login."
-        return 1
+        return 127
     fi
 
     if [[ -f "${py_script}" ]]; then
-        "${PYTHON_CMD}" "${py_script}" staff-login
+        "${PYTHON_CMD}" "${py_script}" "$@"
         return $?
     fi
 
     if [[ -f "${installed_py}" ]]; then
-        "${PYTHON_CMD}" "${installed_py}" staff-login
+        "${PYTHON_CMD}" "${installed_py}" "$@"
         return $?
     fi
 
-    log_error "iitd-proxy.py not found."
-    return 1
+    return 127
+}
+
+run_staff_proxy_login() {
+    if ! run_iitd_proxy_cmd staff-login; then
+        local rc=$?
+        if [[ "${rc}" -eq 127 ]]; then
+            log_error "System Python / iitd-proxy.py not found — cannot run staff proxy login."
+        fi
+        return "${rc}"
+    fi
+    return 0
+}
+
+campus_proxy_already_active() {
+    # Exit 0 from check-active => previous login left system config on disk
+    run_iitd_proxy_cmd check-active >/dev/null 2>&1
 }
 
 ensure_staff_campus_proxy() {
@@ -397,8 +411,6 @@ ensure_staff_campus_proxy() {
     echo -e "${BOLD}${CYAN}╔══════════════════════════════════════════╗${NC}"
     echo -e "${BOLD}${CYAN}║     IITD Staff Proxy Login (required)    ║${NC}"
     echo -e "${BOLD}${CYAN}╚══════════════════════════════════════════╝${NC}"
-    echo
-    log_info "Only staff userid + password. Configures campus proxy system-wide."
     echo
 
     # Prefer verified TLS: install bundled ca-chain if missing
@@ -425,6 +437,17 @@ ensure_staff_campus_proxy() {
         detect_python 2>/dev/null || find_system_python 2>/dev/null || true
     fi
 
+    # Already logged in (config on disk) → do not ask password again
+    local active_msg=""
+    if active_msg="$(run_iitd_proxy_cmd check-active 2>/dev/null)"; then
+        log_success "$(echo "${active_msg}" | tail -n 1)"
+        log_info "To force re-login: sudo iitd-proxy logout && sudo iitd-tool"
+        return 0
+    fi
+
+    log_info "Only staff userid + password. Configures campus proxy system-wide."
+    echo
+
     local rc=1
     while true; do
         run_staff_proxy_login
@@ -435,6 +458,9 @@ ensure_staff_campus_proxy() {
         fi
         if [[ "${rc}" -eq 2 ]]; then
             log_error "Staff proxy login cancelled."
+            return 1
+        fi
+        if [[ "${rc}" -eq 127 ]]; then
             return 1
         fi
         log_warn "Staff proxy login failed."

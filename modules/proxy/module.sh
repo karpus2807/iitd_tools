@@ -114,7 +114,7 @@ show_usage() {
     echo "  iitd-proxy logout             # clear user-session proxy (and system if root)"
     echo "  iitd-proxy shell              # interactive login"
     echo
-    echo -e "${BOLD}System-wide apt/snap/browsers:${NC}"
+    echo -e "${BOLD}System-wide apt/snap/docker/browsers:${NC}"
     echo "  sudo iitd-tool                # staff login at startup configures everything"
     echo
     echo -e "${BOLD}Roles:${NC} btech, mtech, phd, staff, faculty, visitor"
@@ -129,6 +129,7 @@ show_usage() {
     echo
     echo "No passwordless sudoers. Proxy CLI never elevates to root."
     echo "HTTPS login uses verified TLS (set IITD_PROXY_INSECURE_TLS=1 only if needed)."
+    echo "Docker: daemon drop-in + ~/.docker/config.json (system-wide via sudo iitd-tool)."
 }
 
 module_run() {
