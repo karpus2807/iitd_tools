@@ -21,10 +21,14 @@ show_repo_submenu() {
     print_iitd_paths_info
     echo
     echo -e "${BOLD}Submenu:${NC}"
-    echo "  1) Apply IITD mirror (sources.list)"
+    echo "  1) Apply IITD mirror (sources.list) — prompts HTTP or HTTPS"
     echo "  2) Disable ${official_src}"
     echo "  3) Disable 3rd party repositories"
     echo "  4) Run apt update"
+    if [[ -n "${IITD_MIRROR_SCHEME:-}" ]]; then
+        echo
+        echo -e "  Current mirror preference: ${BOLD}${IITD_MIRROR_SCHEME}${NC} → ${IITD_REPO_MIRROR_URL:-}"
+    fi
     echo
     echo "  Tip: Backup / Restore → main menu → Backups & Restore"
     echo

@@ -7,7 +7,8 @@ Ubuntu aur Debian lab systems ke liye configuration tool — proxy, IITD apt mir
 - **Auto OS detection** — Ubuntu (16.04–26.04) aur Debian (10–13) detect karke release codename ke saath kaam karta hai
 - **Menu-driven** — interactive module selection
 - **Modular architecture** — naya module add karo, menu mein automatically dikhega
-- **IITD Repo module** — `/etc/apt/sources.list` mein `repo.iitd.ernet.in`, official `ubuntu.sources` disable
+- **IITD Repo module** — HTTP (`repo.iitd.ernet.in`) ya HTTPS (`repo.iitd.ac.in`) mirror; official `ubuntu.sources` disable
+- **Internal repo proxy bypass** — `repo.iitd.*` sab apps (apt/env/docker/git/browsers/curl/wget) mein campus proxy se bypass
 
 ## Supported Operating Systems
 
@@ -185,9 +186,13 @@ Tool automatically `modules/*/module.sh` files discover karega aur menu mein add
 
 Submenu:
 
-1. Apply IITD mirror (`repo.iitd.ernet.in`)  
+1. Apply IITD mirror — prompts **HTTP** (`http://repo.iitd.ernet.in`) or **HTTPS** (`https://repo.iitd.ac.in`)  
 2. Disable official / 3rd-party sources as needed  
 3. Update apt  
+
+HTTPS uses `repo.iitd.ac.in` because the campus cert SAN is `*.iitd.ac.in` (not `*.iitd.ernet.in`).  
+Proxy install (Proxy Setup module) bhi yahi HTTP/HTTPS choice puchta hai aur sources apply karta hai.  
+Internal mirrors ke liye APT DIRECT: `/etc/apt/apt.conf.d/99iitd-repo-direct`.
 
 Backups & restore: unified **Backups & Restore** menu (`/var/lib/iitd-tool/backups/`).
 
@@ -294,13 +299,13 @@ TLS verified by default. Only if needed: `IITD_PROXY_INSECURE_TLS=1`. Prefer SSL
 
 | Component | Method |
 |-----------|--------|
-| APT | `/etc/apt/apt.conf.d/95iitd-proxy` |
+| APT | `/etc/apt/apt.conf.d/95iitd-proxy` + `/etc/apt/apt.conf.d/99iitd-repo-direct` (IITD mirrors DIRECT) |
 | Snap | `snap set system proxy.*` |
-| Docker | daemon: `/etc/systemd/system/docker.service.d/http-proxy.conf` · client: `~/.docker/config.json` |
+| Docker | daemon: `/etc/systemd/system/docker.service.d/http-proxy.conf` · client: `~/.docker/config.json` (`NO_PROXY` includes `repo.iitd.*`) |
 | Git / GitHub | system + user git proxy |
-| GNOME | gsettings |
-| Chrome / Chromium / Firefox | managed policies |
-| Shell/apps | `/etc/environment`, profile.d, systemd |
+| GNOME | gsettings (`ignore-hosts` includes IITD repos) |
+| Chrome / Chromium / Firefox | managed policies (`ProxyBypassList` / Passthrough) |
+| Shell/apps | `/etc/environment`, profile.d, systemd, wget/curl (`NO_PROXY`) |
 
 ### Roles
 

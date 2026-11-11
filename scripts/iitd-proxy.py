@@ -55,10 +55,25 @@ LOGIN_URL_MAP = {
 }
 
 PROXY_PORT = 3128
-NO_PROXY = "localhost,127.0.0.1,::1"
+# Internal IITD hosts must bypass campus squid (all apps: apt/env/docker/git/browsers/curl/wget)
+NO_PROXY_HOSTS = [
+    "localhost",
+    "127.0.0.1",
+    "::1",
+    "repo.iitd.ernet.in",
+    "repo.iitd.ac.in",
+    ".iitd.ernet.in",
+    ".iitd.ac.in",
+]
+NO_PROXY = ",".join(NO_PROXY_HOSTS)
 MANAGED_MARKER = "iitd-proxy"
 
 APT_PROXY_FILE = "/etc/apt/apt.conf.d/95iitd-proxy"
+APT_REPO_DIRECT_FILE = "/etc/apt/apt.conf.d/99iitd-repo-direct"
+IITD_APT_DIRECT_HOSTS = (
+    "repo.iitd.ernet.in",
+    "repo.iitd.ac.in",
+)
 ENV_FILE = "/etc/environment"
 PROFILE_FILE = "/etc/profile.d/iitd-proxy.sh"
 SYSTEMD_PROXY_FILE = "/etc/systemd/system.conf.d/95iitd-proxy.conf"
@@ -502,6 +517,25 @@ def login(role, prefix, user, password):
     raise ProxyError("IITD proxy login failed. Check role, userid, and password.")
 
 
+def apt_repo_direct_content():
+    lines = [
+        "// Managed by {0}. Internal IITD mirrors bypass campus proxy.".format(MANAGED_MARKER),
+        "// Safe to keep after logout — Direct is a no-op when no proxy is set.",
+    ]
+    for host in IITD_APT_DIRECT_HOSTS:
+        lines.append('Acquire::http::Proxy::{0} "DIRECT";'.format(host))
+        lines.append('Acquire::https::Proxy::{0} "DIRECT";'.format(host))
+    return "\n".join(lines) + "\n"
+
+
+def configure_apt_repo_direct():
+    """Always bypass proxy for internal IITD apt mirrors (http + https)."""
+    if not is_root():
+        return
+    write_text_file(APT_REPO_DIRECT_FILE, apt_repo_direct_content())
+    log("APT internal-repo bypass: {0}".format(APT_REPO_DIRECT_FILE))
+
+
 def configure_apt(prefix):
     url = proxy_url(prefix)
     content = (
@@ -512,6 +546,7 @@ def configure_apt(prefix):
         'Acquire::Retries "3";\n'
     ).format(MANAGED_MARKER, url)
     write_text_file(APT_PROXY_FILE, content)
+    configure_apt_repo_direct()
 
 
 def quote_env_value(value):
@@ -928,7 +963,14 @@ def configure_gsettings(prefix):
         base + ["gsettings", "set", "org.gnome.system.proxy.https", "port", str(PROXY_PORT)],
         base + ["gsettings", "set", "org.gnome.system.proxy.ftp", "host", host],
         base + ["gsettings", "set", "org.gnome.system.proxy.ftp", "port", str(PROXY_PORT)],
-        base + ["gsettings", "set", "org.gnome.system.proxy", "ignore-hosts", "['localhost', '127.0.0.1', '::1']"],
+        base
+        + [
+            "gsettings",
+            "set",
+            "org.gnome.system.proxy",
+            "ignore-hosts",
+            "[{0}]".format(", ".join("'{0}'".format(h) for h in NO_PROXY_HOSTS)),
+        ],
     ]
 
     failed = False

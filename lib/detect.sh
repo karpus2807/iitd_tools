@@ -89,6 +89,16 @@ detect_os() {
         exit 1
     }
 
+    # Prefer saved HTTP/HTTPS mirror choice (set by Proxy / Repo menus)
+    if declare -f load_iitd_mirror_scheme >/dev/null 2>&1; then
+        load_iitd_mirror_scheme
+        if [[ "${OS_ID}" == "debian" ]]; then
+            IITD_REPO_MIRROR_URL="$(iitd_mirror_base_for_scheme "${IITD_MIRROR_SCHEME:-http}")/debian/"
+        else
+            IITD_REPO_MIRROR_URL="$(iitd_mirror_base_for_scheme "${IITD_MIRROR_SCHEME:-http}")/ubuntu/"
+        fi
+    fi
+
     # Backward-compatible names used across modules
     UBUNTU_VERSION="${OS_VERSION}"
     UBUNTU_CODENAME="${OS_CODENAME}"
@@ -96,6 +106,7 @@ detect_os() {
 
     export OS_ID OS_VERSION OS_CODENAME OS_PRETTY OS_CODENAME_MAP IITD_REPO_MIRROR_URL
     export UBUNTU_VERSION UBUNTU_CODENAME UBUNTU_PRETTY
+    export IITD_MIRROR_SCHEME="${IITD_MIRROR_SCHEME:-http}"
 }
 
 detect_ubuntu() {

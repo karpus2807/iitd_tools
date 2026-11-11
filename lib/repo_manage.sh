@@ -60,17 +60,26 @@ repo_action_backup_sources() {
 repo_action_apply_iitd_mirror() {
     local ubuntu_version="$1"
     local ubuntu_codename="$2"
+    local scheme="${3:-}"
     local temp_sources
 
     require_root
     init_iitd_data_dirs
+
+    if [[ -z "${scheme}" ]]; then
+        prompt_iitd_mirror_scheme
+        scheme="${IITD_MIRROR_SCHEME}"
+    else
+        save_iitd_mirror_scheme "${scheme}"
+        scheme="${IITD_MIRROR_SCHEME}"
+    fi
 
     if [[ -f "${SOURCES_LIST}" ]]; then
         _save_original_once "${SOURCES_LIST}" "sources.list"
     fi
 
     temp_sources="$(mktemp)"
-    if ! generate_sources_list "${ubuntu_version}" "${ubuntu_codename}" "${temp_sources}"; then
+    if ! generate_sources_list "${ubuntu_version}" "${ubuntu_codename}" "${temp_sources}" "${scheme}"; then
         rm -f "${temp_sources}"
         return 1
     fi
@@ -78,8 +87,10 @@ repo_action_apply_iitd_mirror() {
     cp "${temp_sources}" "${SOURCES_LIST}"
     rm -f "${temp_sources}"
     chmod 644 "${SOURCES_LIST}"
+    ensure_apt_repo_direct_bypass
     _manifest_add "sources_list" "iitd"
-    log_success "IITD mirror applied -> ${SOURCES_LIST}"
+    _manifest_add "mirror_scheme" "${scheme}"
+    log_success "IITD mirror applied -> ${SOURCES_LIST} ($(iitd_mirror_base_for_scheme "${scheme}"))"
 }
 
 repo_action_disable_ubuntu_sources() {

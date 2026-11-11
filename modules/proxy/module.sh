@@ -133,6 +133,9 @@ show_usage() {
 }
 
 module_run() {
+    local ubuntu_version="${1:-${UBUNTU_VERSION:-}}"
+    local ubuntu_codename="${2:-${UBUNTU_CODENAME:-}}"
+
     # shellcheck source=lib/python.sh
     source "${TOOL_ROOT}/lib/python.sh"
 
@@ -153,6 +156,8 @@ module_run() {
     echo "  • Any user: iitd-proxy <role> <userid>  (no sudo, no root)"
     echo "  • Admin:    sudo iitd-tool  → staff proxy at startup (system-wide)"
     echo "  • Removes any old /etc/sudoers.d/iitd-proxy rule"
+    echo "  • Asks HTTP vs HTTPS for IITD apt mirror, then applies sources.list"
+    echo "  • Internal IITD repos bypass campus proxy (all apps)"
     echo
 
     if [[ -x "${INSTALL_BIN}" ]] && [[ -f "${INSTALL_DIR}/iitd-proxy.py" ]]; then
@@ -184,5 +189,19 @@ module_run() {
     fi
 
     log_success "iitd-proxy installation complete!"
+
+    echo
+    if confirm "Configure IITD apt mirror now (HTTP or HTTPS)?"; then
+        if [[ -z "${ubuntu_version}" || -z "${ubuntu_codename}" ]]; then
+            log_warn "OS version/codename unknown — skip mirror setup. Use: IITD Repository Setup"
+        else
+            repo_action_apply_iitd_mirror "${ubuntu_version}" "${ubuntu_codename}" || \
+                log_warn "Mirror setup failed — use menu: IITD Repository Setup"
+        fi
+    else
+        ensure_apt_repo_direct_bypass || true
+        log_info "Skipped mirror rewrite. APT internal-repo bypass still installed."
+    fi
+
     show_usage
 }

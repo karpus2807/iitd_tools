@@ -80,7 +80,7 @@ Extend: line add in `config/backup-targets.list` **ya** `modules/<name>/backup_t
 
 | # | Option |
 |---|--------|
-| 1 | Apply IITD mirror |
+| 1 | Apply IITD mirror — **HTTP** (`repo.iitd.ernet.in`) ya **HTTPS** (`repo.iitd.ac.in`) |
 | 2 | Disable ubuntu.sources / debian.sources |
 | 3 | Disable 3rd party repos |
 | 4 | Run apt update |
@@ -91,6 +91,9 @@ Extend: line add in `config/backup-targets.list` **ya** `modules/<name>/backup_t
 ### `5` — Proxy Setup (Install iitd-proxy)
 
 Admin **ek baar** CLI install kare (`sudo iitd-tool` → Proxy Setup).
+
+Install ke baad tool **HTTP vs HTTPS** puchega aur usi ke hisaab se `sources.list` set karega.  
+Internal IITD mirrors (`repo.iitd.*`) sab apps mein campus proxy se **bypass** hote hain.
 
 ```bash
 iitd-proxy <role> <userid>    # any user, no root — login + user-session
@@ -183,6 +186,7 @@ Cancel: **`exit`**
 | 2026-07-23 | ThingsBoard Telemetry module (Pi 3/4 MQTT client + systemd) |
 | 2026-07-15 | SNMP Setup menu (install/config/remove + snmpd.conf backup) |
 | 2026-08-08 | Remove ThingsBoard; proxy without sudoers; staff login at iitd-tool start; ca-chain SSL menu; atomic updater |
+| 2026-11-11 | Proxy: internal repo NO_PROXY/DIRECT all apps; HTTP/HTTPS mirror choice on proxy+repo setup |
 | 2026-11-11 | SSL ca-chain: GlobalSign R46 + IITD certca.iitd.ac.in (replace RSA OV 2018 / R3) |
 | 2026-08-08 | SSL menu: Install/Update `ca-chain.crt` (GlobalSign) into system trust |
 | 2026-07-15 | Backups: extensible targets (all + particular backup/restore) |

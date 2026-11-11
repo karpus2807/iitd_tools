@@ -1,20 +1,21 @@
 # IITD Repository - Ubuntu <release> (<version>)
 # Based on official IITD apt configuration guidelines
 # Managed by IITD Lab Setup Tool
+# Mirror: <mirror_base>  (http → repo.iitd.ernet.in, https → repo.iitd.ac.in)
 
 # Binary packages
 # ===============
-deb http://repo.iitd.ernet.in/ubuntu <release> main restricted universe multiverse
-deb http://repo.iitd.ernet.in/ubuntu <release>-updates main restricted universe multiverse
-deb http://repo.iitd.ernet.in/ubuntu <release>-security main restricted universe multiverse
-deb http://repo.iitd.ernet.in/ubuntu <release>-backports main restricted universe multiverse
+deb <mirror_base>/ubuntu <release> main restricted universe multiverse
+deb <mirror_base>/ubuntu <release>-updates main restricted universe multiverse
+deb <mirror_base>/ubuntu <release>-security main restricted universe multiverse
+deb <mirror_base>/ubuntu <release>-backports main restricted universe multiverse
 # Proposed pocket disabled by default (lab stability). Uncomment only if needed:
-# deb http://repo.iitd.ernet.in/ubuntu <release>-proposed main restricted universe multiverse
+# deb <mirror_base>/ubuntu <release>-proposed main restricted universe multiverse
 
-# Sources
+# Sources (disabled by default — speeds apt update; uncomment if you need src packages)
 # =======
-deb-src http://repo.iitd.ernet.in/ubuntu <release> main restricted universe multiverse
-deb-src http://repo.iitd.ernet.in/ubuntu <release>-updates main restricted universe multiverse
-deb-src http://repo.iitd.ernet.in/ubuntu <release>-security main restricted universe multiverse
-deb-src http://repo.iitd.ernet.in/ubuntu <release>-backports main restricted universe multiverse
-# deb-src http://repo.iitd.ernet.in/ubuntu <release>-proposed main restricted universe multiverse
+# deb-src <mirror_base>/ubuntu <release> main restricted universe multiverse
+# deb-src <mirror_base>/ubuntu <release>-updates main restricted universe multiverse
+# deb-src <mirror_base>/ubuntu <release>-security main restricted universe multiverse
+# deb-src <mirror_base>/ubuntu <release>-backports main restricted universe multiverse
+# deb-src <mirror_base>/ubuntu <release>-proposed main restricted universe multiverse
