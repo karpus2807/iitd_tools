@@ -118,7 +118,7 @@ Checkbox list se tools chun kar install karo:
 
 Submenu:
 
-1. **Install Certificate** — `config/certs/ca-chain.crt` (GlobalSign) system pe install
+1. **Install Certificate** — `config/certs/ca-chain.crt` (GlobalSign R46 + IITD certca) system pe install
 2. **Update Certificate** — ca-chain refresh
 3. **Remove Certificate** — IITD ca-chain (optional: sab local custom CAs) + official sync
 4. **Certificate Status**
@@ -183,6 +183,7 @@ Cancel: **`exit`**
 | 2026-07-23 | ThingsBoard Telemetry module (Pi 3/4 MQTT client + systemd) |
 | 2026-07-15 | SNMP Setup menu (install/config/remove + snmpd.conf backup) |
 | 2026-08-08 | Remove ThingsBoard; proxy without sudoers; staff login at iitd-tool start; ca-chain SSL menu; atomic updater |
+| 2026-11-11 | SSL ca-chain: GlobalSign R46 + IITD certca.iitd.ac.in (replace RSA OV 2018 / R3) |
 | 2026-08-08 | SSL menu: Install/Update `ca-chain.crt` (GlobalSign) into system trust |
 | 2026-07-15 | Backups: extensible targets (all + particular backup/restore) |
 | 2026-07-15 | Tool Updater + Backups & Restore menus (GitHub updates / unified restore) |

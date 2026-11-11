@@ -242,11 +242,18 @@ Already installed packages list mein `[installed]` dikhte hain; sirf missing pac
 
 Menu option **SSL / Certificates**:
 
-1. **Install Certificate** — bundled `config/certs/ca-chain.crt` (GlobalSign chain) system trust store mein install  
+1. **Install Certificate** — bundled `config/certs/ca-chain.crt` system trust store mein install  
 2. **Update Certificate** — same ca-chain refresh / overwrite  
 3. **Remove Certificate** — IITD ca-chain + local/custom CAs hatao, official Ubuntu/Debian `ca-certificates` se sync  
 4. **Certificate Status** — installed vs bundled cert details  
 5. **SSL Fix** — legacy CCIITD CA hatao, `ca-certificates` reinstall, trust refresh, phir ca-chain re-apply  
+
+Bundled `ca-chain.crt` (CA certs only):
+- GlobalSign GCC R46 OV TLS CA 2025 (intermediate)
+- GlobalSign Root R46 (`gsca.crt`)
+- IITD `certca.iitd.ac.in` CA
+
+Source copies: `config/certs/gsca.crt`, `certca.iitd.ac.in.crt`, `IITD-chain.pem` (full server chain; leaf not installed into trust).
 
 Install paths:
 - `/usr/local/share/ca-certificates/iitd-ca-chain-NN.crt`
