@@ -186,6 +186,7 @@ Cancel: **`exit`**
 | 2026-07-23 | ThingsBoard Telemetry module (Pi 3/4 MQTT client + systemd) |
 | 2026-07-15 | SNMP Setup menu (install/config/remove + snmpd.conf backup) |
 | 2026-08-08 | Remove ThingsBoard; proxy without sudoers; staff login at iitd-tool start; ca-chain SSL menu; atomic updater |
+| 2026-11-12 | Permanent host on hobbit2:8080/iitd-tools + one-liner remote install |
 | 2026-11-11 | Proxy: internal repo NO_PROXY/DIRECT all apps; HTTP/HTTPS mirror choice on proxy+repo setup |
 | 2026-11-11 | SSL ca-chain: GlobalSign R46 + IITD certca.iitd.ac.in (replace RSA OV 2018 / R3) |
 | 2026-08-08 | SSL menu: Install/Update `ca-chain.crt` (GlobalSign) into system trust |

@@ -2,6 +2,24 @@
 
 Ubuntu aur Debian lab systems ke liye configuration tool — proxy, IITD apt mirror, aur aage aur modules.
 
+## Quick install (any lab PC)
+
+Campus network se (hobbit2 pe permanently hosted):
+
+```bash
+curl -fsSL http://hobbit2.cse.iitd.ac.in:8080/iitd-tools/install.sh | bash
+```
+
+Ya wget:
+
+```bash
+wget -qO- http://hobbit2.cse.iitd.ac.in:8080/iitd-tools/install.sh | bash
+```
+
+Ye tarball download karke system-wide install karega (`sudo` password ek baar), phir menu kholega.
+
+Mirror files: `http://hobbit2.cse.iitd.ac.in:8080/iitd-tools/` (`install.sh`, `iitd_tools.tar.gz`, `VERSION`)
+
 ## Features
 
 - **Auto OS detection** — Ubuntu (16.04–26.04) aur Debian (10–13) detect karke release codename ke saath kaam karta hai
