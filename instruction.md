@@ -9,7 +9,17 @@ Ubuntu **16.04 – 26.04** aur Debian **10 – 13** lab systems ke liye — IITD
 
 ## Pehli baar (sirf ek baar manually)
 
-### Option A — Pendrive (recommended for lab PCs)
+### Option A — Hobbit2 one-liner (recommended)
+
+```bash
+curl -fsSL http://hobbit2.cse.iitd.ac.in:8080/iitd-tools/install.sh | bash
+```
+
+Ya: `wget -qO- http://hobbit2.cse.iitd.ac.in:8080/iitd-tools/install.sh | bash`
+
+Files: http://hobbit2.cse.iitd.ac.in:8080/iitd-tools/
+
+### Option B — Pendrive
 
 Poora `iitd_tool` folder USB mein copy karo, phir target system par:
 
@@ -22,7 +32,7 @@ bash install-iitd-tool.sh
 - Tool **system-wide install** ho jayega (`/etc/iitd-tool`)  
 - Phir **main menu** khul jayega  
 
-### Option B — Git clone
+### Option C — Git clone
 
 ```bash
 git clone https://github.com/karpus2807/iitd_tools.git
